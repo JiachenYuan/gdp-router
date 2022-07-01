@@ -475,6 +475,7 @@ name = "gdp-router"
 version = "0.1.0"
 dependencies = [
  "capsule",
+ "toml",
 ]
 
 [[package]]
