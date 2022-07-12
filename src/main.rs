@@ -1,42 +1,25 @@
+mod packet_receiver;
+mod packet_sender;
+
+use std::net::Ipv4Addr;
+
 use anyhow::Result;
-use capsule::batch::{Batch, Pipeline, Poll};
-use capsule::config::load_config;
-use capsule::packets::icmp::v4::{EchoReply, EchoRequest};
-use capsule::packets::ip::v4::Ipv4;
-use capsule::packets::{Ethernet, Packet};
-use capsule::{Mbuf, PortQueue, Runtime};
-use tracing::{debug, Level};
+use tracing::Level;
 use tracing_subscriber::fmt;
+use clap::Parser;
 
-fn reply_echo(packet: &Mbuf) -> Result<EchoReply> {
-    let reply = Mbuf::new()?;
 
-    let ethernet = packet.peek::<Ethernet>()?;
-    let mut reply = reply.push::<Ethernet>()?;
-    reply.set_src(ethernet.dst());
-    reply.set_dst(ethernet.src());
+/// GDP Switch
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Mode of operation: 1 if sending packet, 0 if receiving packet
+    #[clap(short, long ,value_parser, default_value_t = 0)]
+    mode: u8,
 
-    let ipv4 = ethernet.peek::<Ipv4>()?;
-    let mut reply = reply.push::<Ipv4>()?;
-    reply.set_src(ipv4.dst());
-    reply.set_dst(ipv4.src());
-    reply.set_ttl(255);
-
-    let request = ipv4.peek::<EchoRequest>()?;
-    let mut reply = reply.push::<EchoReply>()?;
-    reply.set_identifier(request.identifier());
-    reply.set_seq_no(request.seq_no());
-    reply.set_data(request.data())?;
-    reply.reconcile_all();
-
-    debug!(?request);
-    debug!(?reply);
-
-    Ok(reply)
-}
-
-fn install(q: PortQueue) -> impl Pipeline {
-    Poll::new(q.clone()).replace(reply_echo).send(q)
+    /// Target switch's ipv4 address if sending packet from current switch
+    #[clap(short, long, value_parser)]
+    target_ip: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -45,10 +28,31 @@ fn main() -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
-    let config = load_config()?;
-    debug!(?config);
+    let args = Args::parse();
 
-    Runtime::build(config)?
-        .add_pipeline_to_port("eth1", install)?
-        .execute()
+    println!("{:?}", args);
+    let mut _target_switch_address = Ipv4Addr::UNSPECIFIED;
+    if args.mode == 1 {
+        match args.target_ip {
+            None => panic!("Intend to send packet, but do not know the target ip. Check --help"),
+            Some(ip_as_string) => {
+                _target_switch_address = ip_as_string.parse::<Ipv4Addr>()?;
+            }
+        }
+    } 
+
+
+    match args.mode {
+        // Receiver mode
+        0 => packet_receiver::start_receiver(),
+        1 => packet_sender::start_sender(_target_switch_address),
+        _ => {
+            println!("Not a valid mode, please check --help");
+            return Ok(());
+        },
+    }
+
+
+
+    
 }

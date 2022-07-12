@@ -1,7 +1,7 @@
 app_name = "gdp"
 master_core = 0
 duration = 50000
-cores = [0, 1]
+cores = [0]
 
 [mempool]
     capacity = 65535
@@ -11,14 +11,8 @@ cores = [0, 1]
     name = "eth1"
     device = "net_tap0"
     args = "iface=mytap"
-    cores = [0, 1]
+    cores = [0]
     rxd = 1024
     txd = 1024
 
-[[ports]]
-    name = "loc"
-    device = "net_tap1"
-    args = "iface=controltap"
-    cores = [0, 1]
-    rxd = 1024
-    txd = 1024
+
