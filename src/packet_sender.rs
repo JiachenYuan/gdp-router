@@ -1,36 +1,18 @@
-use std::{net::{Ipv4Addr, IpAddr}, fs, process::Command};
+
+use crate::schedule::Schedule;
+use std::{net::{Ipv4Addr, IpAddr}, fs, process::Command, time::Duration};
 
 use anyhow::Result;
 use capsule::{batch::{self, Batch, Pipeline, Poll}, Mbuf, packets::{Udp, ip::v4::Ipv4, Packet, Ethernet}, net::MacAddr, Runtime, PortQueue};
 use local_ip_address::local_ip;
+use tokio_timer::delay_for;
+
 
 const MSG: &[u8] = &[b'A'; 10000];
 
 
 
-pub fn start_sender(target_address: Ipv4Addr) -> Result<()> {
-    // Reading Runtime configuration file
-    let path = "runtime_config.toml";
-    let content = fs::read_to_string(path)?;
-    let config = toml::from_str(&content)?;
-    // Build the Runtime
-    let mut runtime = Runtime::build(config)?;
-    
 
-    // connect physical NICs to TAP interfaces
-    // Note:  only packet sent to port 31415 will be received
-    Command::new("./init_tuntap.sh").output()?;
-
-    runtime.add_pipeline_to_port("eth1", move |q| {
-        send_packet_to(q, target_address, 1);
-
-        // TODO: This following pipeline is useless, not sure how to only send a packet...
-        // Poll::new(q.clone()).send(q)
-
-    })?
-    .execute()
-
-}
 
 fn send_packet_to(q: PortQueue, target_address: Ipv4Addr, num_packets: usize){
     let src_mac = q.mac_addr();
@@ -90,5 +72,42 @@ fn query_local_ip_address() -> Ipv4Addr {
     } else {
         panic!("Ipv6 address is not yet supported");
     }
+}
+
+pub fn start_sender(target_address: Ipv4Addr) -> Result<()> {
+    // Reading Runtime configuration file
+    let path = "runtime_config.toml";
+    let content = fs::read_to_string(path)?;
+    let config = toml::from_str(&content)?;
+    // Build the Runtime
+    let mut runtime = Runtime::build(config)?;
+    
+
+    // connect physical NICs to TAP interfaces
+    // Note:  only packet sent to port 31415 will be received
+    Command::new("./init_tuntap.sh").output()?;
+
+    runtime.add_pipeline_to_port("eth1", move |q| {
+        Schedule::new("initial_packet_schedule", async move {
+            delay_for(Duration::from_millis(1000)).await;
+            println!("sending initial packet 1");
+            send_packet_to(q.clone(), target_address, 1);
+            delay_for(Duration::from_millis(1000)).await;
+            println!("sending initial packet 2");
+            send_packet_to(q.clone(), target_address, 1);
+            delay_for(Duration::from_millis(1000)).await;
+            println!("sending initial packet 3");
+            send_packet_to(q.clone(), target_address, 1);
+            delay_for(Duration::from_millis(1000)).await;
+            println!("sending initial packet 4");
+            send_packet_to(q.clone(), target_address, 1);
+            delay_for(Duration::from_millis(1000)).await;
+            println!("sending initial packet 4");
+            send_packet_to(q.clone(), target_address, 1);
+        })
+
+    })?
+    .execute()
+
 }
 

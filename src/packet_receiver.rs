@@ -1,7 +1,7 @@
 use std::fs;
 use std::net::{IpAddr, Ipv4Addr};
 use std::process::Command;
-use capsule::batch::{Batch, Pipeline, Poll};
+use capsule::batch::{Batch, Pipeline, Poll, Disposition};
 use capsule::packets::ip::v4::Ipv4;
 use capsule::packets::{Ethernet, Packet, Udp};
 use capsule::{Mbuf, PortQueue, Runtime};
@@ -72,9 +72,16 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
             packet.parse::<Ethernet>()?.parse::<Ipv4>()
         })
         .filter(move |packet| {
+            println!("{:?}", packet);
             packet.dst() == local_ip_address
         })
         .map(|packet| packet.parse::<Udp<Ipv4>>())
+        .inspect(|disp|{
+            if let Disposition::Act(udp_packet) = disp {
+                debug!("{}", udp_packet.payload_len());
+    
+            }
+        })
         .send(q)
 }
 
