@@ -64,7 +64,7 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
     // Get local ip address
     let local_ip_address = query_local_ip_address();
     
-    println!("{:?}", local_ip_address);
+    println!("My own ip is {:?}", local_ip_address);
 
     Poll::new(q.clone())
     // .replace(reply_echo)
@@ -72,14 +72,16 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
             packet.parse::<Ethernet>()?.parse::<Ipv4>()
         })
         .filter(move |packet| {
-            println!("{:?}", packet);
+            // println!("{:?}", packet);
             packet.dst() == local_ip_address
         })
         .map(|packet| packet.parse::<Udp<Ipv4>>())
         .inspect(|disp|{
             if let Disposition::Act(udp_packet) = disp {
-                debug!("{}", udp_packet.payload_len());
-    
+                debug!("Incoming payload size: {}", udp_packet.payload_len());
+                let offset = udp_packet.payload_offset();
+                let msg:&[u8] = unsafe {udp_packet.mbuf().read_data_slice(offset, 800).unwrap().as_ref()};
+                println!("{:?}", msg);
             }
         })
         .send(q)
