@@ -3,7 +3,7 @@ use crate::schedule::Schedule;
 use std::{net::{Ipv4Addr, IpAddr}, fs, process::Command, time::Duration};
 
 use anyhow::Result;
-use capsule::{batch::{self, Batch, Pipeline, Poll}, Mbuf, packets::{Udp, ip::v4::Ipv4, Packet, Ethernet}, net::MacAddr, Runtime, PortQueue};
+use capsule::{batch::{self, Batch, Pipeline}, Mbuf, packets::{Udp, ip::v4::Ipv4, Packet, Ethernet}, net::MacAddr, Runtime, PortQueue};
 use local_ip_address::local_ip;
 use tokio_timer::delay_for;
 

@@ -72,7 +72,6 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
             packet.parse::<Ethernet>()?.parse::<Ipv4>()
         })
         .filter(move |packet| {
-            // println!("{:?}", packet);
             packet.dst() == local_ip_address
         })
         .map(|packet| packet.parse::<Udp<Ipv4>>())

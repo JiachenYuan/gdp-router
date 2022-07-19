@@ -1,6 +1,8 @@
 mod packet_receiver;
 mod packet_sender;
 mod schedule;
+mod network_protocols;
+mod structs;
 
 use std::net::Ipv4Addr;
 
