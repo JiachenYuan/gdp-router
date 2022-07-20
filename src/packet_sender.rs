@@ -19,7 +19,7 @@ fn send_packet_to(q: PortQueue, target_address: Ipv4Addr, num_packets: usize){
     let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
     let dst_ip = target_address;
     // TODO: this is hardcoded payload size, not sure how to change it
-    let payload_size = 100;
+    let payload_size = 800;
 
     batch::poll_fn(|| Mbuf::alloc_bulk(num_packets).unwrap())
         .map(move |packet| {
