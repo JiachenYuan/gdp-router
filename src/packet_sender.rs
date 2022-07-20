@@ -19,7 +19,7 @@ fn send_packet_to(q: PortQueue, target_address: Ipv4Addr, num_packets: usize){
     let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
     let dst_ip = target_address;
     // TODO: this is hardcoded payload size, not sure how to change it
-    let payload_size = 800;
+    let payload_size = 25;
 
     batch::poll_fn(|| Mbuf::alloc_bulk(num_packets).unwrap())
         .map(move |packet| {
@@ -59,7 +59,7 @@ fn prepare_ping_packet(
 
     let offset = reply.payload_offset();
 
-    let message = "this is a ping message...".as_bytes();
+    let message = "this is a ping message...".as_bytes(); // This message has length 25 bytes, == payload_size
 
     reply.mbuf_mut().extend(offset, payload_size)?;
     reply.mbuf_mut().write_data_slice(offset, &message[..payload_size])?;
