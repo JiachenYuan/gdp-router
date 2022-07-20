@@ -1,14 +1,12 @@
 
-use crate::schedule::Schedule;
+use crate::{schedule::Schedule, utils::query_local_ip_address, network_protocols::gdp::Gdp, structs::GDPAction};
 use std::{net::{Ipv4Addr, IpAddr}, fs, process::Command, time::Duration};
 
 use anyhow::Result;
 use capsule::{batch::{self, Batch, Pipeline}, Mbuf, packets::{Udp, ip::v4::Ipv4, Packet, Ethernet}, net::MacAddr, Runtime, PortQueue};
-use local_ip_address::local_ip;
 use tokio_timer::delay_for;
 
 
-const MSG: &[u8] = &[b'A'; 10000];
 
 
 
@@ -21,24 +19,25 @@ fn send_packet_to(q: PortQueue, target_address: Ipv4Addr, num_packets: usize){
     let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
     let dst_ip = target_address;
     // TODO: this is hardcoded payload size, not sure how to change it
-    let payload_size = 800;
+    let payload_size = 100;
 
     batch::poll_fn(|| Mbuf::alloc_bulk(num_packets).unwrap())
         .map(move |packet| {
-            prepare_packet(packet, src_mac, src_ip, dst_mac, dst_ip, payload_size)
+            prepare_ping_packet(packet, src_mac, src_ip, dst_mac, dst_ip, payload_size)
         })
         .send(q)
         .run_once();
 }
 
-fn prepare_packet(
+fn prepare_ping_packet(
     reply: Mbuf,
     src_mac: MacAddr,
     src_ip: Ipv4Addr,
     dst_mac: MacAddr,
     dst_ip: Ipv4Addr,
     payload_size: usize
-) -> Result<Udp<Ipv4>> {
+) -> Result<Gdp<Udp<Ipv4>>> {
+
     let mut reply = reply.push::<Ethernet>()?;
     reply.set_src(src_mac);
     reply.set_dst(dst_mac);
@@ -51,9 +50,16 @@ fn prepare_packet(
     reply.set_src_port(31415);
     reply.set_dst_port(31415);
 
+    // Setting Gdp-related information in the GDP header
+    let mut reply = reply.push::<Gdp<Udp<Ipv4>>>()?;
+    reply.set_action(GDPAction::Ping);
+    reply.set_data_len(payload_size);
+    reply.set_src(src_ip);
+    reply.set_dst(dst_ip);
+
     let offset = reply.payload_offset();
 
-    let message = MSG;
+    let message = "this is a ping message...".as_bytes();
 
     reply.mbuf_mut().extend(offset, payload_size)?;
     reply.mbuf_mut().write_data_slice(offset, &message[..payload_size])?;
@@ -64,15 +70,6 @@ fn prepare_packet(
 
 }
 
-
-fn query_local_ip_address() -> Ipv4Addr {
-    let my_local_ip = local_ip().unwrap();
-    if let IpAddr::V4(ipv4_address) = my_local_ip {
-        return ipv4_address;
-    } else {
-        panic!("Ipv6 address is not yet supported");
-    }
-}
 
 pub fn start_sender(target_address: Ipv4Addr) -> Result<()> {
     // Reading Runtime configuration file
@@ -102,7 +99,7 @@ pub fn start_sender(target_address: Ipv4Addr) -> Result<()> {
             println!("sending initial packet 4");
             send_packet_to(q.clone(), target_address, 1);
             delay_for(Duration::from_millis(1000)).await;
-            println!("sending initial packet 4");
+            println!("sending initial packet 5");
             send_packet_to(q.clone(), target_address, 1);
         })
 

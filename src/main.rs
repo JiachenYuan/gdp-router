@@ -3,6 +3,7 @@ mod packet_sender;
 mod schedule;
 mod network_protocols;
 mod structs;
+mod utils;
 
 use std::net::Ipv4Addr;
 
@@ -37,7 +38,7 @@ fn main() -> Result<()> {
     let mut _target_switch_address = Ipv4Addr::UNSPECIFIED;
     if args.mode == 1 {
         match args.target_ip {
-            None => panic!("Intend to send packet, but do not know the target ip. Check --help"),
+            None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
             Some(ip_as_string) => {
                 _target_switch_address = ip_as_string.parse::<Ipv4Addr>()?;
             }
@@ -48,6 +49,8 @@ fn main() -> Result<()> {
     match args.mode {
         // Receiver mode
         0 => packet_receiver::start_receiver(),
+
+        // Sender mode
         1 => packet_sender::start_sender(_target_switch_address),
         _ => {
             println!("Not a valid mode, please check --help");

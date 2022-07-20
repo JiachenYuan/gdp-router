@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 use anyhow::{Result, anyhow};
 use capsule::{packets::types::u16be, SizeOf};
 
-
+#[derive(Debug)]
 pub enum GDPAction {
     Ping = 0,
     RibRegister = 1,
