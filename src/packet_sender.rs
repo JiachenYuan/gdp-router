@@ -1,6 +1,6 @@
 
 use crate::{schedule::Schedule, utils::query_local_ip_address, network_protocols::gdp::Gdp, structs::GDPAction};
-use std::{net::{Ipv4Addr, IpAddr}, fs, process::Command, time::Duration};
+use std::{net::{Ipv4Addr}, fs, process::Command, time::Duration};
 
 use anyhow::Result;
 use capsule::{batch::{self, Batch, Pipeline}, Mbuf, packets::{Udp, ip::v4::Ipv4, Packet, Ethernet}, net::MacAddr, Runtime, PortQueue};

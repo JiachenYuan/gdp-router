@@ -38,7 +38,7 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
         .map(|packet| packet.parse::<Gdp<Udp<Ipv4>>>())
         .inspect(|disp| {
             if let Disposition::Act(gdp_packet) = disp {
-                debug!("GDP action is {:?}", gdp_packet);
+                debug!("GDP action is {:?}\n", gdp_packet.action().unwrap());
             }
         })
         .send(q)
