@@ -8,6 +8,8 @@ use crate::{utils::{query_local_ip_address, get_payload}, network_protocols::gdp
 
 fn register_neighbor(ip_addr: Ipv4Addr, store: &mut Store) {
     store.neighbors.insert(ip_addr);
+    // printing current registered switch's ip
+    println!("Current registered switch: {:?}", store.neighbors);
 }
 
 fn prepare_ack_packet(
