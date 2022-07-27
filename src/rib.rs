@@ -60,6 +60,8 @@ fn register_and_ack(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, store: &mut Store) -
     first_four_octats[2] = message[2];
     first_four_octats[3] = message[3];
     let sender_ip = Ipv4Addr::from(first_four_octats);
+    
+    println!("{:?} wants to register", sender_ip);
 
     register_neighbor(sender_ip, store);
 
@@ -70,6 +72,8 @@ fn register_and_ack(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, store: &mut Store) -
     let packet_ether_layer = packet_ip_layer.envelope();
     let dst_mac = packet_ether_layer.src();
     let dst_ip = packet_ip_layer.src();
+
+    println!("sending back the acknowledgement");
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
         .map(move |reply| {
