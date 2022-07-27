@@ -20,6 +20,7 @@ use clap::Parser;
 #[allow(non_snake_case)]
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
+
 struct Args {
     /// Mode of operation: 1 if sending packet, 0 if receiving packet
     #[clap(short, long ,value_parser, default_value_t = 0)]
