@@ -1,7 +1,7 @@
 use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
 
-use capsule::{batch::{Pipeline, Poll, Batch, self}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
+use capsule::{batch::{Pipeline, Poll, Batch, self, Disposition}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
 use tracing::debug;
 use crate::{utils::{query_local_ip_address, get_payload}, network_protocols::gdp::Gdp, structs::GdpAction, persistence::Store,};
 
@@ -96,6 +96,13 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
         })
         .map(|packet| packet.parse::<Udp<Ipv4>>())
         .map(|packet| packet.parse::<Gdp<Udp<Ipv4>>>())
+
+        .inspect(|disp| {
+            if let Disposition::Act(gdp_packet) = disp {
+                debug!("GDP action is {:?}\n", gdp_packet.action().unwrap());
+            }
+        })
+      
         .group_by(
             |packet| packet.action().unwrap(), 
             |groups| {
@@ -113,7 +120,7 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
                         })
                     }
         )
-        .send(q.clone())
+        .send(q)
 }
 
 
@@ -126,7 +133,7 @@ pub fn start_rib() -> Result<()> {
     // Build the Runtime
     let mut runtime = Runtime::build(config)?;
 
-    debug!("I'm a RIB, my ip is: {:?}", query_local_ip_address());
+    println!("I'm a RIB, my ip is: {:?}", query_local_ip_address());
 
     // connect physical NICs to TAP interfaces
     // Note:  only packet sent to port 31415 will be received

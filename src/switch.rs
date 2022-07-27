@@ -115,7 +115,7 @@ pub fn start_switch(access_point_ip: Ipv4Addr) -> Result<()>{
  
      runtime.add_pipeline_to_port("eth1", move |q| {
         send_register_request(q.clone(), access_point_ip);
-        
+        println!("sent register request");
         switch_pipeline(q)
 
  
