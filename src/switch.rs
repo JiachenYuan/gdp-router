@@ -78,7 +78,8 @@ fn switch_pipeline(q: PortQueue) -> impl Pipeline {
                     GdpAction::RibRegisterAck => |group| {
                         group.inspect(|disp| {
                             if let Disposition::Act(packet) = disp {
-                                debug!("Current switch is registered.");
+                                
+                                println!("Current switch is registered.");
                                 //* Workflow starts here...
                                 // todo: workflow, sending initial packet
                                 

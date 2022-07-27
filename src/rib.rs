@@ -69,8 +69,7 @@ fn register_and_ack(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, store: &mut Store) -
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     let packet_ip_layer = packet.envelope().envelope();
-    let packet_ether_layer = packet_ip_layer.envelope();
-    let dst_mac = packet_ether_layer.src();
+    let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
     let dst_ip = packet_ip_layer.src();
 
     println!("sending back the acknowledgement");
