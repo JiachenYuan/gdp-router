@@ -99,7 +99,7 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
 
         .inspect(|disp| {
             if let Disposition::Act(gdp_packet) = disp {
-                debug!("GDP action is {:?}\n", gdp_packet.action().unwrap());
+                println!("received a packet. GDP action is {:?}", gdp_packet.action().unwrap());
             }
         })
       
@@ -109,6 +109,7 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
                 crate::compose! ( groups {
                             GdpAction::RibRegister => |group| {
                                 group.for_each(move |register_packet| {
+                                    println!("processing the register request");
                                     register_and_ack(&q_clone_for_closure, register_packet, &mut store)
                                 })
                             }
