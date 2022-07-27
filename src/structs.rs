@@ -2,21 +2,21 @@ use std::net::Ipv4Addr;
 use anyhow::{Result, anyhow};
 use capsule::{packets::types::u16be, SizeOf};
 
-#[derive(Debug)]
-pub enum GDPAction {
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum GdpAction {
     Ping = 0,
     RibRegister = 1,
     RibRegisterAck = 2,
 }
 
-impl TryFrom<u8> for GDPAction {
+impl TryFrom<u8> for GdpAction {
     type Error = anyhow::Error;
 
     fn try_from(v: u8) -> Result<Self> {
         match v {
-            0 => Ok(GDPAction::Ping),
-            1 => Ok(GDPAction::RibRegister),
-            2 => Ok(GDPAction::RibRegisterAck),
+            0 => Ok(GdpAction::Ping),
+            1 => Ok(GdpAction::RibRegister),
+            2 => Ok(GdpAction::RibRegisterAck),
             unknown => Err(anyhow!("Unable to convert number {} into GDPAction. It is undefined", unknown)),
         }
     }

@@ -2,7 +2,7 @@ use std::{ptr::NonNull, net::Ipv4Addr, fmt};
 use anyhow::Result;
 use capsule::{packets::{Packet, Internal, Udp, ip::v4::Ipv4, types::u16be}, SizeOf};
 
-use crate::structs::{GDPHeader, GDPAction};
+use crate::structs::{GDPHeader, GdpAction};
 
 pub struct Gdp<T: Packet> {
     envelope: T,
@@ -22,12 +22,12 @@ impl<T: Packet> Gdp<T> {
     }
 
     #[inline]
-    pub fn action(&self) -> Result<GDPAction> {
+    pub fn action(&self) -> Result<GdpAction> {
         self.header().action.try_into()
     }
 
     #[inline]
-    pub fn set_action(&mut self, action: GDPAction) {
+    pub fn set_action(&mut self, action: GdpAction) {
         self.header_mut().action = action as u8;
     }
 

@@ -4,6 +4,9 @@ mod schedule;
 mod network_protocols;
 mod structs;
 mod utils;
+mod rib;
+mod persistence;
+mod switch;
 
 use std::net::Ipv4Addr;
 
@@ -14,6 +17,7 @@ use clap::Parser;
 
 
 /// GDP Switch
+#[allow(non_snake_case)]
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
@@ -24,6 +28,10 @@ struct Args {
     /// Target switch's ipv4 address if sending packet from current switch
     #[clap(short, long, value_parser)]
     target_ip: Option<String>,
+
+    /// Access point's ipv4 address if sending packet from current switch
+    #[clap(short, long, value_parser)]
+    AP_ip: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -45,6 +53,16 @@ fn main() -> Result<()> {
         }
     } 
 
+    let mut _AP_ip = Ipv4Addr::UNSPECIFIED;
+    if args.mode == 3 {
+        match args.AP_ip {
+            None => panic!("Want to connect this switch to network, but missing access point ip. Check cargo run -- --help"),
+            Some(ip_as_string) => {
+                _AP_ip = ip_as_string.parse::<Ipv4Addr>()?;
+            }
+        }
+    } 
+
 
     match args.mode {
         // Receiver mode
@@ -52,6 +70,8 @@ fn main() -> Result<()> {
 
         // Sender mode
         1 => packet_sender::start_sender(_target_switch_address),
+        2 => rib::start_rib(),
+        3 => switch::start_switch(_AP_ip),
         _ => {
             println!("Not a valid mode, please check --help");
             return Ok(());

@@ -1,5 +1,5 @@
 
-use crate::{schedule::Schedule, utils::query_local_ip_address, network_protocols::gdp::Gdp, structs::GDPAction};
+use crate::{schedule::Schedule, utils::query_local_ip_address, network_protocols::gdp::Gdp, structs::GdpAction};
 use std::{net::{Ipv4Addr}, fs, process::Command, time::Duration};
 
 use anyhow::Result;
@@ -12,7 +12,7 @@ use tokio_timer::delay_for;
 
 
 
-fn send_packet_to(q: PortQueue, target_address: Ipv4Addr, num_packets: usize){
+pub fn send_packet_to(q: PortQueue, target_address: Ipv4Addr, num_packets: usize){
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     // TODO: this is hardcoded mac address for broadcasting purposes
@@ -52,7 +52,7 @@ fn prepare_ping_packet(
 
     // Setting Gdp-related information in the GDP header
     let mut reply = reply.push::<Gdp<Udp<Ipv4>>>()?;
-    reply.set_action(GDPAction::Ping);
+    reply.set_action(GdpAction::Ping);
     reply.set_data_len(payload_size);
     reply.set_src(src_ip);
     reply.set_dst(dst_ip);
