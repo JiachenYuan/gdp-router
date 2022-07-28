@@ -92,6 +92,7 @@ fn prepare_packet_forward(q: &PortQueue, mut packet: Gdp<Udp<Ipv4>>) -> Result<G
     if intended_addr != local_addr {
         let ip_layer = packet.envelope_mut().envelope_mut();
         ip_layer.set_src(local_addr);
+        ip_layer.set_dst(intended_addr);
         let ether_layer = ip_layer.envelope_mut();
         ether_layer.set_src(q.mac_addr());
         ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
