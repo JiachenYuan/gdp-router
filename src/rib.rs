@@ -119,11 +119,11 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
         .map(|packet| packet.parse::<Udp<Ipv4>>())
         .map(|packet| packet.parse::<Gdp<Udp<Ipv4>>>())
 
-        .inspect(|disp| {
-            if let Disposition::Act(gdp_packet) = disp {
-                println!("received a packet. GDP action is {:?}", gdp_packet.action().unwrap());
-            }
-        })
+        // .inspect(|disp| {
+        //     if let Disposition::Act(gdp_packet) = disp {
+        //         println!("received a packet. GDP action is {:?}", gdp_packet.action().unwrap());
+        //     }
+        // })
       
         .group_by(
             |packet| packet.action().unwrap(), 

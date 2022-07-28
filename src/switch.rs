@@ -144,13 +144,9 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) 
 
                                 println!("Sending test packet");
                                 send_test_packet(closure_q.clone(), access_point_addr, target);
-                                sleep(Duration::from_millis(2000));
                                 send_test_packet(closure_q.clone(), access_point_addr, target);
-                                sleep(Duration::from_millis(2000));
                                 send_test_packet(closure_q.clone(), access_point_addr, target);
-                                sleep(Duration::from_millis(2000));
                                 send_test_packet(closure_q.clone(), access_point_addr, target);
-                                sleep(Duration::from_millis(2000));
                             }
                         })
                         
