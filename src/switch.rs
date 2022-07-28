@@ -105,7 +105,7 @@ fn prepare_test_packet(
 }
 
 
-fn send_test_packet(q: PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) {
+fn send_test_packet(q: &PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) {
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
@@ -116,7 +116,7 @@ fn send_test_packet(q: PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr)
         .map(move |packet| {
             prepare_test_packet(packet, src_mac, src_ip, dst_mac, dst_ip, access_point_addr, payload_size)
         })
-        .send(q)
+        .send(q.clone())
         .run_once();
 }
 
@@ -143,10 +143,10 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) 
                                 // todo: workflow, sending initial packet
 
                                 println!("Sending test packet");
-                                send_test_packet(closure_q.clone(), access_point_addr, target);
-                                send_test_packet(closure_q.clone(), access_point_addr, target);
-                                send_test_packet(closure_q.clone(), access_point_addr, target);
-                                send_test_packet(closure_q.clone(), access_point_addr, target);
+                                send_test_packet(&closure_q, access_point_addr, target);
+                                send_test_packet(&closure_q, access_point_addr, target);
+                                send_test_packet(&closure_q, access_point_addr, target);
+                                send_test_packet(&closure_q, access_point_addr, target);
                             }
                         })
                         
