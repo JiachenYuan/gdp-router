@@ -7,6 +7,7 @@ pub enum GdpAction {
     Ping = 0,
     RibRegister = 1,
     RibRegisterAck = 2,
+    PacketForward = 3,
 }
 
 impl TryFrom<u8> for GdpAction {
@@ -17,6 +18,7 @@ impl TryFrom<u8> for GdpAction {
             0 => Ok(GdpAction::Ping),
             1 => Ok(GdpAction::RibRegister),
             2 => Ok(GdpAction::RibRegisterAck),
+            3 => Ok(GdpAction::PacketForward),
             unknown => Err(anyhow!("Unable to convert number {} into GDPAction. It is undefined", unknown)),
         }
     }

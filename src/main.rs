@@ -5,7 +5,7 @@ mod network_protocols;
 mod structs;
 mod utils;
 mod rib;
-mod persistence;
+mod router_store;
 mod switch;
 
 use std::net::Ipv4Addr;
@@ -44,6 +44,7 @@ fn main() -> Result<()> {
 
     println!("{:?}", args);
     let mut _target_switch_address = Ipv4Addr::UNSPECIFIED;
+    let mut _AP_ip = Ipv4Addr::UNSPECIFIED;
     if args.mode == 1 {
         match args.target_ip {
             None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
@@ -52,13 +53,17 @@ fn main() -> Result<()> {
             }
         }
     } 
-
-    let mut _AP_ip = Ipv4Addr::UNSPECIFIED;
-    if args.mode == 3 {
+    else if args.mode == 3 {
         match args.AP_ip {
             None => panic!("Want to connect this switch to network, but missing access point ip. Check cargo run -- --help"),
             Some(ip_as_string) => {
                 _AP_ip = ip_as_string.parse::<Ipv4Addr>()?;
+            }
+        }
+        match args.target_ip {
+            None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
+            Some(target_address) => {
+                _target_switch_address = target_address.parse::<Ipv4Addr>()?;
             }
         }
     } 
@@ -71,7 +76,7 @@ fn main() -> Result<()> {
         // Sender mode
         1 => packet_sender::start_sender(_target_switch_address),
         2 => rib::start_rib(),
-        3 => switch::start_switch(_AP_ip),
+        3 => switch::start_switch(_AP_ip, _target_switch_address),
         _ => {
             println!("Not a valid mode, please check --help");
             return Ok(());

@@ -2,8 +2,7 @@ use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
 
 use capsule::{batch::{Pipeline, Poll, Batch, self, Disposition}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
-use tracing::debug;
-use crate::{utils::{query_local_ip_address, get_payload}, network_protocols::gdp::Gdp, structs::GdpAction, persistence::Store,};
+use crate::{utils::{query_local_ip_address, get_payload}, network_protocols::gdp::Gdp, structs::GdpAction, router_store::Store,};
 
 
 fn register_neighbor(ip_addr: Ipv4Addr, store: &mut Store) {
@@ -87,9 +86,27 @@ fn register_and_ack(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, store: &mut Store) -
 }
 
 
+fn prepare_packet_forward(q: &PortQueue, mut packet: Gdp<Udp<Ipv4>>) -> Result<Gdp<Udp<Ipv4>>> {
+    let intended_addr = packet.dst();
+    let local_addr = query_local_ip_address();
+    if intended_addr != local_addr {
+        let ip_layer = packet.envelope_mut().envelope_mut();
+        ip_layer.set_src(local_addr);
+        let ether_layer = ip_layer.envelope_mut();
+        ether_layer.set_src(q.mac_addr());
+        ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
+    }
+    // It's broadcasting the forwarded packet, letting switch filtering the packet themselves...
+
+    Ok(packet)
+}
+
+
 fn pipeline_installer(q: PortQueue) -> impl Pipeline {
     let local_ip_address = query_local_ip_address();
     let q_clone_for_closure = q.clone();
+    let q_clone_for_closure2 = q.clone();
+    // todo: Concurrency protection around this store
     let mut store = Store::new();
 
     Poll::new(q.clone())
@@ -114,13 +131,17 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
                 crate::compose! ( groups {
                             GdpAction::RibRegister => |group| {
                                 group.for_each(move |register_packet| {
-                                    println!("processing the register request");
+                                    println!("processing switch register request");
                                     register_and_ack(&q_clone_for_closure, register_packet, &mut store)
                                 })
                             }
+
                             _ => |group| {
-                                group.filter(|_| {
-                                    false
+                                // group.filter(|_| {
+                                //     false
+                                // })
+                                group.map(move |packet| {
+                                    prepare_packet_forward(&q_clone_for_closure2, packet)
                                 })
                             }
                         })
