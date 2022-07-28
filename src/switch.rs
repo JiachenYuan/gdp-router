@@ -140,13 +140,12 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) 
                                 
                                 println!("Current switch is registered.");
                                 //* Workflow starts here...
-                                // todo: workflow, sending initial packet
-
-                                println!("Sending test packet");
-                                send_test_packet(&closure_q, access_point_addr, target);
-                                send_test_packet(&closure_q, access_point_addr, target);
-                                send_test_packet(&closure_q, access_point_addr, target);
-                                send_test_packet(&closure_q, access_point_addr, target);
+                                // todo: workflow, sending initial packet. It has problem for now
+                                // println!("Sending test packet");
+                                // send_test_packet(&closure_q, access_point_addr, target);
+                                // send_test_packet(&closure_q, access_point_addr, target);
+                                // send_test_packet(&closure_q, access_point_addr, target);
+                                // send_test_packet(&closure_q, access_point_addr, target);
                             }
                         })
                         
