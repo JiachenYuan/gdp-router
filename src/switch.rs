@@ -189,10 +189,20 @@ pub fn start_switch(access_point_addr: Ipv4Addr, target: Ipv4Addr) -> Result<()>
     // Note:  only packet sent to port 31415 will be received
     Command::new("./init_tuntap.sh").output()?;
 
+
     runtime.add_pipeline_to_port("eth1", move |q| {
-    send_register_request(q.clone(), access_point_addr);
-    println!("sent register request");
-    switch_pipeline(q, access_point_addr, target)
+        send_register_request(q.clone(), access_point_addr);
+        println!("sent register request");
+
+        // ! not the intended way to send packet, just for testing purpose
+        send_test_packet(&q, access_point_addr, target);
+        send_test_packet(&q, access_point_addr, target);
+        send_test_packet(&q, access_point_addr, target);
+        send_test_packet(&q, access_point_addr, target);
+
+        switch_pipeline(q, access_point_addr, target)
+
     })?
+    
     .execute()
 }
