@@ -57,7 +57,9 @@ fn prepare_ack_packet(
 fn register_and_ack(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, store: Store) -> Result<()> {
     println!("In register_and_ack");
     let message:&[u8] = get_payload(packet)?;
-    let sender_ip = ipv4_addr_from_bytes(message.try_into().expect("Cannot parse message as an ip address"));
+    println!("message is: {:?} ", message);
+    let sender_ip = ipv4_addr_from_bytes(message.try_into().unwrap());
+    println!("Parsed ip is: {:?}", sender_ip);
     let src_gdpname = packet.src();
     println!("{:?} wants to register", sender_ip);
 
