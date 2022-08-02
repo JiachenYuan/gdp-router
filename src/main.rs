@@ -60,7 +60,8 @@ fn main() -> Result<()> {
 
         2 => {
             // todo: start packet sender node
-            let target_gdpname= hex::decode(args.target.unwrap()).expect("Decoding fail");
+            let mut target_gdpname = [0u8; 32];
+            hex::decode_to_slice(args.target.unwrap(), &mut target_gdpname).expect("Decoding failed");
             let access_point_addr = Ipv4Addr::from_str(&args.AP_ip.unwrap()).unwrap();
             test_forward(target_gdpname, access_point_addr)?;
         }
