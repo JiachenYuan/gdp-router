@@ -57,9 +57,9 @@ fn prepare_register_packet(
         let local_ip_as_octets = src_ip.octets();
         
         // packet payload is set to be local ip address
-        // reply.mbuf_mut().extend(offset, local_ip_as_octets.len())?;
-        // reply.mbuf_mut().write_data_slice(offset, &local_ip_as_octets[..local_ip_as_octets.len()])?;
-        set_payload(&mut reply, &local_ip_as_octets);
+        reply.mbuf_mut().extend(offset, local_ip_as_octets.len())?;
+        reply.mbuf_mut().write_data_slice(offset, &local_ip_as_octets[..local_ip_as_octets.len()])?;
+        // set_payload(&mut reply, &local_ip_as_octets);
         
         reply.reconcile_all();
     
