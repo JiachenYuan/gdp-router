@@ -54,7 +54,7 @@ pub fn generate_gdpname(address: &Ipv4Addr) -> [u8; 32] {
         .chain_update(now_utc.to_rfc2822())
         .finalize();
 
-    println!("SHA256 generated GDPName: {:?}", hash);
+    println!("SHA256 generated GDPName: {:x}", hash);
 
     let val: [u8; 32] = hash.as_slice().try_into().expect("Wrong length");
 

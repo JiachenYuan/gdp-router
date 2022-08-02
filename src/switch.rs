@@ -193,7 +193,7 @@ pub fn start_switch(access_point_addr: Ipv4Addr, target: GdpName) -> Result<()>{
     // Obtain GDPName
     let gdpname = generate_gdpname(&local_ip);
 
-    println!("I am a GDP Switch. My GdpName is {:?}", gdpname);
+    // println!("I am a GDP Switch. My GdpName is {:?}", gdpname);
 
 
     runtime.add_pipeline_to_port("eth1", move |q| {
