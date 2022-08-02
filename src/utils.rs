@@ -1,8 +1,20 @@
-use std::net::{Ipv4Addr, IpAddr};
+use std::{net::{Ipv4Addr, IpAddr}, collections::HashMap};
 use anyhow::Result;
 
-use capsule::packets::Packet;
+use capsule::{packets::{Packet, Udp, ip::v4::Ipv4}, batch::GroupByBatchBuilder};
 use local_ip_address::local_ip;
+use sha2::{Sha256, Digest};
+use chrono::prelude::*;
+use std::convert::TryInto;
+
+use crate::{network_protocols::gdp::Gdp, structs::GdpAction};
+
+
+pub type GdpGroupAction<U> = Box<GroupByBatchBuilder<U>>;
+pub type GdpMap<T> = HashMap<Option<T>, GdpGroupAction<Gdp<Udp<Ipv4>>>>;
+pub trait GdpPipeline: FnOnce(&mut GdpMap<GdpAction>) {}
+
+impl<T: FnOnce(&mut GdpMap<GdpAction>)> GdpPipeline for T {}
 
 
 pub fn query_local_ip_address() -> Ipv4Addr {
@@ -30,6 +42,36 @@ pub fn set_payload(packet: &mut impl Packet, data: &[u8]) -> Result<()> {
     packet.mbuf_mut().write_data_slice(payload_offset, data)?;
     Ok(())
 }
+
+
+
+pub fn generate_gdpname(address: &Ipv4Addr) -> [u8; 32] {
+
+    let now_utc: DateTime<Utc> = Utc::now();
+
+    let hash = Sha256::new()
+        .chain_update(address.to_string())
+        .chain_update(now_utc.to_rfc2822())
+        .finalize();
+
+    println!("SHA256 generated GDPName: {:?}", hash);
+
+    let val: [u8; 32] = hash.as_slice().try_into().expect("Wrong length");
+
+    return val;
+}
+
+
+pub fn ipv4_addr_from_bytes(bytes: &[u8; 4]) -> Ipv4Addr {
+    let mut first_four_octats: [u8; 4] = [0; 4];
+    first_four_octats[0] = bytes[0];
+    first_four_octats[1] = bytes[1];
+    first_four_octats[2] = bytes[2];
+    first_four_octats[3] = bytes[3];
+    
+    Ipv4Addr::from(first_four_octats)
+}
+
 
 
 
@@ -67,4 +109,24 @@ macro_rules! compose {
     ($map:ident { _ => |$_arg:tt| $_body:block }) => {{
         $map.insert(None, Box::new(|$_arg| Box::new($_body)));
     }};
+}
+
+
+pub fn constrain<T, F>(f: F) -> F
+where
+    F: for<'a> FnOnce(&'a mut GdpMap<T>),
+{
+    f
+}
+
+#[macro_export]
+macro_rules! pipeline {
+    { $($key:expr => |$arg:tt| $body:block),+ $(,)? } => {$crate::utils::constrain(move |lookup| {
+        $crate::__move_compose!(lookup, $($key => |$arg| $body),*);
+        lookup.insert(None, Box::new(|group| Box::new(group)));
+    })};
+    { $($key:expr => |$arg:tt| $body:block),+ $(,)? _ => |$_arg:tt| $_body:block } => {$crate::utils::constrain(move |lookup| {
+        $crate::__move_compose!(lookup, $($key => |$arg| $body),*);
+        lookup.insert(None, Box::new(move |$_arg| Box::new($_body)));
+    })};
 }
