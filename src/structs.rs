@@ -1,4 +1,3 @@
-use std::net::Ipv4Addr;
 use anyhow::{Result, anyhow};
 use capsule::{packets::types::u16be, SizeOf};
 
@@ -8,6 +7,7 @@ pub enum GdpAction {
     RibRegister = 1,
     RibRegisterAck = 2,
     PacketForward = 3,
+    Noop = 4
 }
 
 impl TryFrom<u8> for GdpAction {
@@ -19,18 +19,21 @@ impl TryFrom<u8> for GdpAction {
             1 => Ok(GdpAction::RibRegister),
             2 => Ok(GdpAction::RibRegisterAck),
             3 => Ok(GdpAction::PacketForward),
+            4 => Ok(GdpAction::Noop),
             unknown => Err(anyhow!("Unable to convert number {} into GDPAction. It is undefined", unknown)),
         }
     }
 }
+
+pub type GdpName = [u8; 32];
 
 #[derive(Clone, Copy, Debug, SizeOf)]
 #[repr(C)]
 pub struct GDPHeader {
     pub action: u8,
     pub data_len: u16be,
-    pub src: Ipv4Addr,
-    pub dst: Ipv4Addr,
+    pub src_gdpname: GdpName,
+    pub dst_gdpname: GdpName,
 }
 
 
