@@ -90,14 +90,14 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
     if intended_gdpname != local_gdpname {
         let gdpname_hash_map = store.get_neighbors().read().unwrap();
         println!("Forwarding to {:?}", intended_gdpname);
-        println!("Current neighbors: {:?}", *gdpname_hash_map);
+        // println!("Current neighbors: {:?}", *gdpname_hash_map);
         let ip_layer = packet.envelope_mut().envelope_mut();
         ip_layer.set_src(local_ip);
         // Query local router store to get neighbor's ip
-        let new_dst_ip = gdpname_hash_map.get(&local_gdpname);
+        let new_dst_ip = gdpname_hash_map.get(&intended_gdpname);
         match new_dst_ip {
             Some(target_switch_ip) => {
-                println!("Adjusting destination");
+                // println!("Adjusting destination");
                 ip_layer.set_dst(*target_switch_ip);
                 let ether_layer = ip_layer.envelope_mut();
                 ether_layer.set_src(q.mac_addr());
