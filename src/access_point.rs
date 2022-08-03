@@ -85,9 +85,10 @@ fn register_and_ack(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, store: Store) -> Res
 fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut packet: Gdp<Udp<Ipv4>>, store: Store) -> Result<Gdp<Udp<Ipv4>>> {
     let intended_gdpname = packet.dst();
     let local_ip = query_local_ip_address();
-    println!("Forwarding... Inteded target: {:?}", intended_gdpname);
+    // println!("Forwarding... Inteded target: {:?}", intended_gdpname);
     // Currently only supports one level forward
     if (intended_gdpname != local_gdpname) && (store.get_neighbors().read().unwrap().contains_key(&local_gdpname)) {
+        println!("Forwarding to {:?}", intended_gdpname);
         let ip_layer = packet.envelope_mut().envelope_mut();
         ip_layer.set_src(local_ip);
         // Query local router store to get neighbor's ip
