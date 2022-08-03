@@ -87,8 +87,10 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
     let local_ip = query_local_ip_address();
     // println!("Forwarding... Inteded target: {:?}", intended_gdpname);
     // Currently only supports one level forward
-    if (intended_gdpname != local_gdpname) && (store.get_neighbors().read().unwrap().contains_key(&local_gdpname)) {
+    if intended_gdpname != local_gdpname {
+        let gdpname_mapping = store.get_neighbors().read().unwrap();
         println!("Forwarding to {:?}", intended_gdpname);
+        println!("Current neighbors: {:?}", *gdpname_mapping);
         let ip_layer = packet.envelope_mut().envelope_mut();
         ip_layer.set_src(local_ip);
         // Query local router store to get neighbor's ip
