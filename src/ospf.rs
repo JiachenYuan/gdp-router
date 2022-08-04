@@ -1,4 +1,4 @@
-use std::{collections::Vec, collections::HashMap, net::Ipv4Addr};
+use std::{vec, collections::HashMap, net::Ipv4Addr};
 
 pub struct LinkStateDatabase {
     pub neighbors: Vec<Ipv4Addr>,
@@ -14,9 +14,9 @@ impl LinkStateDatabase {
     }
 
     pub fn add_neighbor(neighbor: Ipv4Addr) {
-        neighbors.push(neighbor);
+        Self.neighbors.push(neighbor);
         // Insert to routing table with edge cost 1 (# jumps)
-        routing_table.insert(
+        Self.routing_table.insert(
             neighbor,
             1,
         );
@@ -29,7 +29,7 @@ impl LinkStateDatabase {
 
     pub fn get_next_hop(dest: Ipv4Addr) -> Ipv4Addr {
         // Search routing table
-        match routing_table.get(dest) {
+        match Self.routing_table.get(dest) {
             Some(result) => {
                 println!("Next hop: {result.0}");
                 return result.0;

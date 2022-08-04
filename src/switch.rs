@@ -73,7 +73,7 @@ pub fn send_neighbor_request(q: PortQueue, access_point_addr: Ipv4Addr) {
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
         .map(move |reply| {
-            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, "test packet 123", GdpAction::LSA)
+            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, "test packet 123".as_bytes(), GdpAction::LSA)
         })
         .send(q.clone())
         .run_once();
@@ -110,6 +110,7 @@ fn prepare_packet(
     reply.set_dst(dst_ip);
 
     let offset = reply.payload_offset();
+    let payload_size = payload.len();
 
     reply.mbuf_mut().extend(offset, payload_size)?;
     reply.mbuf_mut().write_data_slice(offset, &payload[..payload_size])?;
