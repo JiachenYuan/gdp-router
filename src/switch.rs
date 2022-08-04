@@ -6,6 +6,7 @@ use tokio_timer::delay_for;
 use crate::{network_protocols::gdp::Gdp, structs::GdpAction, utils::query_local_ip_address, packet_sender::send_packet_to, schedule::Schedule};
 use tracing::debug;
 use crate::utils::get_payload;
+use crate::ospf::LinkStateDatabase;
 
 pub fn send_register_request(q: PortQueue, access_point_addr: Ipv4Addr) {
     let src_mac = q.mac_addr();
@@ -61,6 +62,62 @@ fn prepare_register_packet(
         Ok(reply)
 
     }
+
+
+pub fn send_neighbor_request(q: PortQueue, access_point_addr: Ipv4Addr) {
+    let src_mac = q.mac_addr();
+    let src_ip = query_local_ip_address();
+    // Broadcasting the packet
+    let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
+    let dst_ip = access_point_addr;
+
+    batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
+        .map(move |reply| {
+            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, "test packet 123", GdpAction::LSA)
+        })
+        .send(q.clone())
+        .run_once();
+}
+
+// Change to send arbitrary messages, specifically the entire routing table
+fn prepare_packet(
+    reply: Mbuf,
+    src_mac: MacAddr,
+    src_ip: Ipv4Addr,
+    dst_mac: MacAddr,
+    dst_ip: Ipv4Addr,
+    payload: &[u8],
+    action: GdpAction,
+) -> Result<Gdp<Udp<Ipv4>>> {
+
+    let mut reply = reply.push::<Ethernet>()?;
+    reply.set_src(src_mac);
+    reply.set_dst(dst_mac);
+
+    let mut reply = reply.push::<Ipv4>()?;
+    reply.set_src(src_ip);
+    reply.set_dst(dst_ip);
+
+    let mut reply = reply.push::<Udp<Ipv4>>()?;
+    reply.set_src_port(31415);
+    reply.set_dst_port(31415);
+
+    // Setting Gdp-related information in the GDP header
+    let mut reply = reply.push::<Gdp<Udp<Ipv4>>>()?;
+    reply.set_action(action);
+    reply.set_data_len(payload.len());
+    reply.set_src(src_ip);
+    reply.set_dst(dst_ip);
+
+    let offset = reply.payload_offset();
+
+    reply.mbuf_mut().extend(offset, payload_size)?;
+    reply.mbuf_mut().write_data_slice(offset, &payload[..payload_size])?;
+    
+    reply.reconcile_all();
+
+    Ok(reply)
+}
 
 fn prepare_test_packet(
     reply: Mbuf,
@@ -183,7 +240,9 @@ pub fn start_switch(access_point_addr: Ipv4Addr, target: Ipv4Addr) -> Result<()>
     let config = toml::from_str(&content)?;
     // Build the Runtime
     let mut runtime = Runtime::build(config)?;
-    
+
+    // Initialize OSPF state
+    let mut link_state = LinkStateDatabase::new();
 
     // connect physical NICs to TAP interfaces
     // Note:  only packet sent to port 31415 will be received
@@ -191,8 +250,9 @@ pub fn start_switch(access_point_addr: Ipv4Addr, target: Ipv4Addr) -> Result<()>
 
 
     runtime.add_pipeline_to_port("eth1", move |q| {
-        send_register_request(q.clone(), access_point_addr);
-        println!("sent register request");
+        // send_register_request(q.clone(), access_point_addr);
+        send_neighbor_request(q.clone(), access_point_addr);
+        println!("sent neighbor request");
         switch_pipeline(q, access_point_addr, target)
 
     })?

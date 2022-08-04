@@ -6,6 +6,7 @@ mod structs;
 mod utils;
 mod rib;
 mod router_store;
+mod ospf;
 mod switch;
 
 use std::net::Ipv4Addr;
