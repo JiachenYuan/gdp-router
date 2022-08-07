@@ -7,6 +7,9 @@ mod utils;
 mod access_point;
 mod router_store;
 mod switch;
+mod certificates;
+
+mod test_certificates;
 
 use std::{net::Ipv4Addr, str::FromStr};
 

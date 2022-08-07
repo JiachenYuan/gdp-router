@@ -1,5 +1,7 @@
 use anyhow::{Result, anyhow};
 use capsule::{packets::types::u16be, SizeOf};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GdpAction {
@@ -40,4 +42,16 @@ pub struct GDPHeader {
     pub action: u8,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+pub struct GdpMeta {
+    pub pub_key: [u8; 32], // TODO: compute hash on initialization
+}
 
+impl GdpMeta {
+    // For now gdp name is just the hashed public key
+    pub fn hash(&self) -> GdpName {
+        let mut hasher = Sha256::new();
+        hasher.update(self.pub_key);
+        hasher.finalize().into()
+    }
+}

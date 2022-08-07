@@ -1,6 +1,7 @@
 use std::{ptr::NonNull, fmt};
 use anyhow::Result;
 use capsule::{packets::{Packet, Internal, Udp, ip::v4::Ipv4, types::u16be}, SizeOf};
+use serde::{Deserialize, Serialize};
 
 use crate::structs::{GDPHeader, GdpAction, GdpName};
 
@@ -63,12 +64,10 @@ impl<T: Packet> Gdp<T> {
 
 }
 
-
-
-
-
-
-
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+pub struct GdpMeta {
+    pub pub_key: [u8; 32], // TODO: compute hash on initialization
+}
 
 
 
@@ -164,3 +163,4 @@ impl fmt::Debug for Gdp<Udp<Ipv4>> {
             .finish()
     }
 }
+
