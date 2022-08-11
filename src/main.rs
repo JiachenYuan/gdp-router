@@ -54,20 +54,6 @@ fn main() -> Result<()> {
             }
         }
     } 
-    else if args.mode == 3 {
-        match args.AP_ip {
-            None => panic!("Want to connect this switch to network, but missing access point ip. Check cargo run -- --help"),
-            Some(ip_as_string) => {
-                _AP_ip = ip_as_string.parse::<Ipv4Addr>()?;
-            }
-        }
-        match args.target_ip {
-            None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
-            Some(target_address) => {
-                _target_switch_address = target_address.parse::<Ipv4Addr>()?;
-            }
-        }
-    } 
     else if args.mode == 4 {
         match args.target_ip {
             None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
@@ -91,7 +77,7 @@ fn main() -> Result<()> {
         // Sender mode
         1 => packet_sender::start_sender(_target_switch_address),
         2 => rib::start_rib(),
-        3 => switch::start_switch(_AP_ip, _target_switch_address),
+        3 => switch::start_switch(args.AP_ip, args.target_ip),
         4 => packet_sender::test_forward(_target_switch_address, _AP_ip),
         _ => {
             println!("Not a valid mode, please check --help");

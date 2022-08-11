@@ -2,6 +2,7 @@ use std::{fs, process::Command, net::Ipv4Addr, time::Duration, thread::sleep};
 use anyhow::Result;
 use capsule::{Runtime, batch::{self, Batch, Pipeline, Poll}, Mbuf, PortQueue, packets::{Ethernet, ip::v4::Ipv4, Udp, Packet}, net::MacAddr};
 use capsule::batch::Disposition;
+use tokio_net::signal::unix::libc::access;
 use tokio_timer::delay_for;
 use crate::{network_protocols::gdp::Gdp, structs::GdpAction, utils::query_local_ip_address, packet_sender::send_packet_to, schedule::Schedule};
 use tracing::debug;
@@ -64,7 +65,7 @@ fn prepare_register_packet(
     }
 
 
-pub fn send_neighbor_request(q: PortQueue, access_point_addr: Ipv4Addr) {
+pub fn send_neighbor_request(q: PortQueue, db: LinkStateDatabase, access_point_addr: Ipv4Addr) {
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     // Broadcasting the packet
@@ -126,7 +127,6 @@ fn prepare_test_packet(
     src_ip: Ipv4Addr,
     dst_mac: MacAddr,
     dst_ip: Ipv4Addr,
-    access_point_addr: Ipv4Addr,
     payload_size: usize
 ) -> Result<Gdp<Udp<Ipv4>>> {
 
@@ -137,7 +137,7 @@ fn prepare_test_packet(
     let mut reply = reply.push::<Ipv4>()?;
     reply.set_src(src_ip);
     // delegate public access point to forward packet
-    reply.set_dst(access_point_addr);
+    reply.set_dst(dst_ip);
 
     let mut reply = reply.push::<Udp<Ipv4>>()?;
     reply.set_src_port(31415);
@@ -163,7 +163,7 @@ fn prepare_test_packet(
 }
 
 
-fn send_test_packet(q: &PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) {
+fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
@@ -172,7 +172,7 @@ fn send_test_packet(q: &PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
         .map(move |packet| {
-            prepare_test_packet(packet, src_mac, src_ip, dst_mac, dst_ip, access_point_addr, payload_size)
+            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, "test packet 123".as_bytes(), GdpAction::Ping)
         })
         .send(q.clone())
         .run_once();
@@ -217,6 +217,15 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) 
                             }
                         })
                     }
+                    GdpAction::LSA => |group| {
+                        group.inspect(|disp| {
+                            if let Disposition::Act(packet) = disp {
+                                println!("Received LSA...");
+                                let message = get_payload(packet).unwrap();
+                                println!("{:?}", message);
+                            }
+                        })
+                    }
 
 
 
@@ -234,7 +243,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) 
 
 
 
-pub fn start_switch(access_point_addr: Ipv4Addr, target: Ipv4Addr) -> Result<()>{
+pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -> Result<()>{
      // Reading Runtime configuration file
     let path = "runtime_config.toml";
     let content = fs::read_to_string(path)?;
@@ -244,6 +253,9 @@ pub fn start_switch(access_point_addr: Ipv4Addr, target: Ipv4Addr) -> Result<()>
 
     // Initialize OSPF state
     let mut link_state = LinkStateDatabase::new();
+    // Test
+    link_state.add_neighbor("1.1.1.1".parse::<Ipv4Addr>()?);
+
 
     // connect physical NICs to TAP interfaces
     // Note:  only packet sent to port 31415 will be received
@@ -252,8 +264,27 @@ pub fn start_switch(access_point_addr: Ipv4Addr, target: Ipv4Addr) -> Result<()>
 
     runtime.add_pipeline_to_port("eth1", move |q| {
         // send_register_request(q.clone(), access_point_addr);
-        send_neighbor_request(q.clone(), access_point_addr);
-        println!("sent neighbor request");
+        match access_point_addr {
+            // Add neighbor if given, exchange routing info
+            None => println!("No neighbor specified."),
+            Some(ip_as_string) => {
+                println!("sent neighbor request");
+                let ip = ip_as_string.parse::<Ipv4Addr>()?;
+                send_neighbor_request(q.clone(), link_state.clone(), ip);
+                link_state.add_neighbor(ip);
+            }
+        }
+        // Add delay?
+        match target {
+            None => println!("No ping action."),
+            Some(target_address) => {
+                println!("Pinging {}", target_address);
+                _target_switch_address = target_address.parse::<Ipv4Addr>()?;
+                send_test_packet(&q, target)
+            }
+        }
+
+        // Listen to incoming packets
         switch_pipeline(q, access_point_addr, target)
 
     })?
