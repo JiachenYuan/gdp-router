@@ -8,6 +8,7 @@ use crate::{network_protocols::gdp::Gdp, structs::GdpAction, utils::query_local_
 use tracing::debug;
 use crate::utils::get_payload;
 use crate::ospf::LinkStateDatabase;
+use std::sync::{Arc, Mutex};
 
 pub fn send_register_request(q: PortQueue, access_point_addr: Ipv4Addr) {
     let src_mac = q.mac_addr();
@@ -65,7 +66,7 @@ fn prepare_register_packet(
     }
 
 
-pub fn send_neighbor_request(q: PortQueue, db: LinkStateDatabase, access_point_addr: Ipv4Addr) {
+pub fn send_neighbor_request(q: PortQueue, db: Arc<Mutex<LinkStateDatabase>>, access_point_addr: Ipv4Addr) {
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     // Broadcasting the packet
@@ -171,7 +172,7 @@ fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
     let payload_size = 25;
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
-        .map(move |packet| {
+        .map(move |reply| {
             prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, "test packet 123".as_bytes(), GdpAction::Ping)
         })
         .send(q.clone())
@@ -179,7 +180,7 @@ fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
 }
 
 
-fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) -> impl Pipeline {
+fn switch_pipeline(q: PortQueue) -> impl Pipeline {
     let local_ip_address = query_local_ip_address();
 
     let closure_q = q.clone();
@@ -252,9 +253,9 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
     let mut runtime = Runtime::build(config)?;
 
     // Initialize OSPF state
-    let mut link_state = LinkStateDatabase::new();
+    let link_state = Arc::new(Mutex::new(LinkStateDatabase::new()));
     // Test
-    link_state.add_neighbor("1.1.1.1".parse::<Ipv4Addr>()?);
+    link_state.lock().unwrap().add_neighbor("1.1.1.1".parse::<Ipv4Addr>()?);
 
 
     // connect physical NICs to TAP interfaces
@@ -264,28 +265,28 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
 
     runtime.add_pipeline_to_port("eth1", move |q| {
         // send_register_request(q.clone(), access_point_addr);
-        match access_point_addr {
+        match &access_point_addr {
             // Add neighbor if given, exchange routing info
             None => println!("No neighbor specified."),
             Some(ip_as_string) => {
                 println!("sent neighbor request");
-                let ip = ip_as_string.parse::<Ipv4Addr>()?;
+                let ip = ip_as_string.parse::<Ipv4Addr>().unwrap();
                 send_neighbor_request(q.clone(), link_state.clone(), ip);
-                link_state.add_neighbor(ip);
+                link_state.lock().unwrap().add_neighbor(ip);
             }
         }
         // Add delay?
-        match target {
+        match &target {
             None => println!("No ping action."),
-            Some(target_address) => {
-                println!("Pinging {}", target_address);
-                _target_switch_address = target_address.parse::<Ipv4Addr>()?;
-                send_test_packet(&q, target)
+            Some(_target_address) => {
+                println!("Pinging {}", _target_address);
+                let target_address = _target_address.parse::<Ipv4Addr>().unwrap();
+                send_test_packet(&q, target_address)
             }
         }
 
         // Listen to incoming packets
-        switch_pipeline(q, access_point_addr, target)
+        switch_pipeline(q)
 
     })?
     

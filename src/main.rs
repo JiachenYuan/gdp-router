@@ -49,7 +49,7 @@ fn main() -> Result<()> {
     if args.mode == 1 {
         match args.target_ip {
             None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
-            Some(ip_as_string) => {
+            Some(ref ip_as_string) => {
                 _target_switch_address = ip_as_string.parse::<Ipv4Addr>()?;
             }
         }
@@ -57,13 +57,13 @@ fn main() -> Result<()> {
     else if args.mode == 4 {
         match args.target_ip {
             None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
-            Some(ip_as_string) => {
+            Some(ref ip_as_string) => {
                 _target_switch_address = ip_as_string.parse::<Ipv4Addr>()?;
             }
         }
         match args.AP_ip {
             None => panic!("Want to connect this switch to network, but missing access point ip. Check cargo run -- --help"),
-            Some(ip_as_string) => {
+            Some(ref ip_as_string) => {
                 _AP_ip = ip_as_string.parse::<Ipv4Addr>()?;
             }
         }
