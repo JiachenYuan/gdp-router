@@ -1,4 +1,5 @@
 use std::{collections::HashMap, net::Ipv4Addr};
+use crate::utils::query_local_ip_address;
 
 pub struct LinkStateDatabase {
     pub neighbors: Vec<Ipv4Addr>,
@@ -9,7 +10,9 @@ impl LinkStateDatabase {
     pub fn new() -> LinkStateDatabase {
         LinkStateDatabase {
             neighbors: Vec::new(),
-            routing_table: HashMap::new(),
+            routing_table: HashMap::from([
+                (query_local_ip_address(), (query_local_ip_address(), 0)),
+            ])
         }
     }
 
@@ -25,9 +28,23 @@ impl LinkStateDatabase {
         );
     }
 
-    pub fn update_state(&mut self, neighbor_table: &[u8]) {
+    pub fn update_state(&mut self, neighbor_ip: Ipv4Addr, neighbor_table: &str) {
         // Deserialize
+        let table: <HashMap<Ipv4Addr, (Ipv4Addr, u8)>> = serde_json::from_str(neighbor_table)?;
+
         // Update routing table
+        for (dest, (next, cost)) in table {
+            if !self.routing_table.contains_key(&dest) {
+                self.routing_table.insert(
+                    dest,
+                    (
+                        neighbor,
+                        cost + 1,
+                    )
+                );
+            }   
+        }
+
     }
 
     pub fn get_next_hop(&mut self, dest: Ipv4Addr) -> Option<Ipv4Addr> {
@@ -43,5 +60,9 @@ impl LinkStateDatabase {
                 return None;
             }
         }
+    }
+
+    pub fn table_as_str(self) -> &str {
+        return serde_json::to_string(&(self.routing_table)).unwrap();
     }
 }
