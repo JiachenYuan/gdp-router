@@ -1,4 +1,4 @@
-use std::{ptr::NonNull, net::Ipv4Addr, fmt};
+use std::{ptr::NonNull, fmt};
 use anyhow::Result;
 use capsule::{packets::{Packet, Internal, Udp, ip::v4::Ipv4, types::u16be}, SizeOf};
 
@@ -12,12 +12,12 @@ pub struct Gdp<T: Packet> {
 
 impl<T: Packet> Gdp<T> {
     #[inline]
-    fn header(&self) -> &GDPHeader {
+    pub fn header(&self) -> &GDPHeader {
         unsafe { self.header.as_ref() }
     }
 
     #[inline]
-    fn header_mut(&mut self) -> &mut GDPHeader {
+    pub fn header_mut(&mut self) -> &mut GDPHeader {
         unsafe { self.header.as_mut() }
     }
 
@@ -127,7 +127,7 @@ impl<T: Packet> Packet for Gdp<T> {
         let mbuf = envelope.mbuf_mut();
 
         mbuf.extend(offset, GDPHeader::size_of())?;
-        let header = mbuf.write_data(offset, &GDPHeader { action: 0, data_len: u16be::MIN, src_gdpname: [0; 32], dst_gdpname: [0; 32] })?;
+        let header = mbuf.write_data(offset, &GDPHeader { action: 0, data_len: u16be::MIN, src_gdpname: [0; 32], dst_gdpname: [0; 32], num_packets: 1, packet_no: 1, uuid: u16be::MIN })?;
 
         Ok(Gdp {
             envelope,

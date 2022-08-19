@@ -4,8 +4,8 @@ use capsule::{packets::types::u16be, SizeOf};
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GdpAction {
     Ping = 0,
-    RibRegister = 1,
-    RibRegisterAck = 2,
+    Register = 1,
+    RegisterAck = 2,
     PacketForward = 3,
     Noop = 4
 }
@@ -16,8 +16,8 @@ impl TryFrom<u8> for GdpAction {
     fn try_from(v: u8) -> Result<Self> {
         match v {
             0 => Ok(GdpAction::Ping),
-            1 => Ok(GdpAction::RibRegister),
-            2 => Ok(GdpAction::RibRegisterAck),
+            1 => Ok(GdpAction::Register),
+            2 => Ok(GdpAction::RegisterAck),
             3 => Ok(GdpAction::PacketForward),
             4 => Ok(GdpAction::Noop),
             unknown => Err(anyhow!("Unable to convert number {} into GDPAction. It is undefined", unknown)),
@@ -34,6 +34,9 @@ pub struct GDPHeader {
     pub data_len: u16be,
     pub src_gdpname: GdpName,
     pub dst_gdpname: GdpName,
+    pub num_packets: i32,
+    pub packet_no: i32,
+    pub uuid: u16be // 128-bit uuid
 }
 
 

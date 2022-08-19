@@ -15,7 +15,7 @@ use tracing::Level;
 use tracing_subscriber::fmt;
 use clap::Parser;
 
-use crate::{switch::start_switch, access_point::start_access_point, packet_sender::test_forward};
+use crate::{switch::start_switch, access_point::start_access_point, packet_sender::test_forward, utils::gdpname_hex_to_byte_array};
 
 
 /// GDP Switch
@@ -46,12 +46,11 @@ fn main() -> Result<()> {
 
     println!("{:?}", args);
     
-
+    // todo: Perform argument validation and cleaning
     match args.mode {
         0 => {
             let access_point_addr = Ipv4Addr::from_str(&args.AP_ip.unwrap()).unwrap();
-            let target_gdpname = [0u8; 32];
-            start_switch(access_point_addr, target_gdpname)?;
+            start_switch(access_point_addr)?;
         },
         
         1 => {
@@ -59,9 +58,7 @@ fn main() -> Result<()> {
         },
 
         2 => {
-            // todo: start packet sender node
-            let mut target_gdpname = [0u8; 32];
-            hex::decode_to_slice(args.target.unwrap(), &mut target_gdpname).expect("Decoding failed");
+            let target_gdpname = gdpname_hex_to_byte_array(&args.target.unwrap());
             println!("Parsed GdpName is {:?}", target_gdpname);
             let access_point_addr = Ipv4Addr::from_str(&args.AP_ip.unwrap()).unwrap();
             test_forward(target_gdpname, access_point_addr)?;

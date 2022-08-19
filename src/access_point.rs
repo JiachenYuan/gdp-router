@@ -33,7 +33,7 @@ fn prepare_ack_packet(
     
         // Setting Gdp-related information in the GDP header
         let mut reply = reply.push::<Gdp<Udp<Ipv4>>>()?;
-        reply.set_action(GdpAction::RibRegisterAck);
+        reply.set_action(GdpAction::RegisterAck);
         reply.set_data_len(4);
 
         reply.set_dst(dst_gdpname);
@@ -130,7 +130,7 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
         .group_by(
              move |packet| packet.action().unwrap_or(GdpAction::Noop), 
                 pipeline! {
-                            GdpAction::RibRegister => |group| {
+                            GdpAction::Register => |group| {
                                 group.for_each(move |register_packet| {
                                     println!("processing switch register request");
                                     register_and_ack(&q_clone_for_closure1, register_packet, store)

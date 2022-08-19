@@ -7,7 +7,7 @@ use sha2::{Sha256, Digest};
 use chrono::prelude::*;
 use std::convert::TryInto;
 
-use crate::{network_protocols::gdp::Gdp, structs::GdpAction};
+use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}};
 
 
 pub type GdpGroupAction<U> = Box<GroupByBatchBuilder<U>>;
@@ -44,8 +44,10 @@ pub fn set_payload(packet: &mut impl Packet, data: &[u8]) -> Result<()> {
 }
 
 
-
-pub fn generate_gdpname(address: &Ipv4Addr) -> [u8; 32] {
+/**
+ * Generate and print a 256 bit string using SHA-256 with information about current time and switch's IP
+ */
+pub fn generate_gdpname(address: &Ipv4Addr) -> GdpName {
 
     let now_utc: DateTime<Utc> = Utc::now();
 
@@ -70,6 +72,16 @@ pub fn ipv4_addr_from_bytes(bytes: &[u8; 4]) -> Ipv4Addr {
     first_four_octats[3] = bytes[3];
     
     Ipv4Addr::from(first_four_octats)
+}
+
+pub fn gdpname_hex_to_byte_array(hex: &str) -> GdpName {
+    let mut target_gdpname = [0u8; 32];
+    hex::decode_to_slice(hex, &mut target_gdpname).expect("Decoding failed");
+    target_gdpname
+}
+
+pub fn gdpname_byte_array_to_hex(gdpname: GdpName) -> String {
+    hex::encode(gdpname)
 }
 
 

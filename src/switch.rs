@@ -1,8 +1,8 @@
 use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
-use capsule::{Runtime, batch::{self, Batch, Pipeline, Poll}, Mbuf, PortQueue, packets::{Ethernet, ip::v4::Ipv4, Udp, Packet}, net::MacAddr};
+use capsule::{Runtime, batch::{self, Batch, Pipeline, Poll, Disposition}, Mbuf, PortQueue, packets::{Ethernet, ip::v4::Ipv4, Udp, Packet}, net::MacAddr};
 
-use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, utils::{query_local_ip_address, generate_gdpname, set_payload}, pipeline};
+use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, utils::{query_local_ip_address, generate_gdpname, set_payload, ipv4_addr_from_bytes, gdpname_byte_array_to_hex}, pipeline, router_store::Store};
 use crate::utils::get_payload;
 
 
@@ -44,7 +44,7 @@ fn prepare_register_packet(
     
         // Setting Gdp-related information in the GDP header
         let mut reply = reply.push::<Gdp<Udp<Ipv4>>>()?;
-        reply.set_action(GdpAction::RibRegister);
+        reply.set_action(GdpAction::Register);
         reply.set_data_len(4);
         let mut src_gdpname: [u8; 32] = Default::default();
         src_gdpname.copy_from_slice(&gdpname[..]);
@@ -132,18 +132,36 @@ fn prepare_register_packet(
 //         .run_once();
 // }
 
+fn register_client(packet: &Gdp<Udp<Ipv4>>, store: Store) -> Result<()>{
+    let client_gdpname = packet.src();
+    let message:&[u8] = get_payload(packet)?;
 
-fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: GdpName, gdpname: [u8; 32]) -> impl Pipeline {
-    let local_ip_address = query_local_ip_address();
+    println!("{:?} from {:?}", message, gdpname_byte_array_to_hex(client_gdpname));
+
+    let sender_ip = ipv4_addr_from_bytes(message.try_into().unwrap());
+    store.get_neighbors().write().unwrap().insert(client_gdpname, sender_ip);
+
+    println!("Current registered clients: {:?}", store.get_neighbors().read().unwrap());
+
+    Ok(())
+}
+
+
+fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32], store: Store, local_ip_address: Ipv4Addr) -> impl Pipeline {
 
     Poll::new(q.clone())
         .map(|packet| packet.parse::<Ethernet>()?.parse::<Ipv4>())
+        .inspect(|disp| {
+            if let Disposition::Act(v4) = disp {
+                println!("{:?}", v4.src());
+            }
+        })
         .filter(move |packet| packet.dst() == local_ip_address)
         .map(|packet| packet.parse::<Udp<Ipv4>>()?.parse::<Gdp<Udp<Ipv4>>>())
         .group_by (
             |packet| packet.action().unwrap(),
             pipeline! {
-                    GdpAction::RibRegisterAck => |group| {
+                    GdpAction::RegisterAck => |group| {
                         group.for_each(|packet| {
                             println!("Acknowledgement received!");
                             Ok(())
@@ -160,6 +178,22 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: GdpName, g
                         })
                     }
                     ,
+                    GdpAction::Register => |group| {
+                        group.for_each(move |packet| {
+                            register_client(packet, store)
+                        })
+                        .filter(|_| { false })
+                    }
+                    ,
+                    GdpAction::PacketForward => |group| {
+                        group.for_each(move |packet| {
+                            println!("Packet received, to be forward... packet series is {:?}", packet.header().uuid);
+                            Ok(())
+                        })
+                    }
+
+
+
                     _ => |group| {
                         group.filter(|_| {
                             false
@@ -173,7 +207,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, target: GdpName, g
 
 
 
-pub fn start_switch(access_point_addr: Ipv4Addr, target: GdpName) -> Result<()>{
+pub fn start_switch(access_point_addr: Ipv4Addr) -> Result<()>{
      // Reading Runtime configuration file
     let path = "runtime_config.toml";
     let content = fs::read_to_string(path)?;
@@ -190,16 +224,19 @@ pub fn start_switch(access_point_addr: Ipv4Addr, target: GdpName) -> Result<()>{
     // Obtain local IPv4 address
     let local_ip = query_local_ip_address();
 
-    // Obtain GDPName
+    // Obtain GDPName and print it
     let gdpname = generate_gdpname(&local_ip);
 
     // println!("I am a GDP Switch. My GdpName is {:?}", gdpname);
+
+    // Initialize shared information store
+    let store = Store::new();
 
 
     runtime.add_pipeline_to_port("eth1", move |q| {
         send_register_request(q.clone(), access_point_addr, gdpname);
         println!("sent register request");
-        switch_pipeline(q, access_point_addr, target, gdpname)
+        switch_pipeline(q, access_point_addr, gdpname, store, Ipv4Addr::from(local_ip))
 
     })?
     
