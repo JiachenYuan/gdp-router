@@ -36,7 +36,7 @@ pub struct GDPHeader {
     pub dst_gdpname: GdpName,
     pub num_packets: i32,
     pub packet_no: i32,
-    pub uuid: u16be // 128-bit uuid
+    pub uuid: i128 // 128-bit uuid
 }
 
 

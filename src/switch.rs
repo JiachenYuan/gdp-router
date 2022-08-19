@@ -151,11 +151,11 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
 
     Poll::new(q.clone())
         .map(|packet| packet.parse::<Ethernet>()?.parse::<Ipv4>())
-        .inspect(|disp| {
-            if let Disposition::Act(v4) = disp {
-                println!("{:?}", v4.src());
-            }
-        })
+        // .inspect(|disp| {
+        //     if let Disposition::Act(v4) = disp {
+        //         println!("{:?}", v4.src());
+        //     }
+        // })
         .filter(move |packet| packet.dst() == local_ip_address)
         .map(|packet| packet.parse::<Udp<Ipv4>>()?.parse::<Gdp<Udp<Ipv4>>>())
         .group_by (
