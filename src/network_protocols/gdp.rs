@@ -127,7 +127,7 @@ impl<T: Packet> Packet for Gdp<T> {
         let mbuf = envelope.mbuf_mut();
 
         mbuf.extend(offset, GDPHeader::size_of())?;
-        let header = mbuf.write_data(offset, &GDPHeader { action: 0, data_len: u16be::MIN, src_gdpname: [0; 32], dst_gdpname: [0; 32], num_packets: 1, packet_no: 1, uuid: 0 })?;
+        let header = mbuf.write_data(offset, &GDPHeader { action: 0, data_len: u16be::MIN, src_gdpname: [0; 32], dst_gdpname: [0; 32], num_packets: 1, packet_no: 1, uuid: [0; 16] })?;
 
         Ok(Gdp {
             envelope,
