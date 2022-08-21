@@ -7,7 +7,7 @@ use sha2::{Sha256, Digest};
 use chrono::prelude::*;
 use std::convert::TryInto;
 
-use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}};
+use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName, Uuid}};
 
 
 pub type GdpGroupAction<U> = Box<GroupByBatchBuilder<U>>;
@@ -82,6 +82,10 @@ pub fn gdpname_hex_to_byte_array(hex: &str) -> GdpName {
 
 pub fn gdpname_byte_array_to_hex(gdpname: GdpName) -> String {
     hex::encode(gdpname)
+}
+
+pub fn uuid_byte_array_to_hex(uuid: Uuid) -> String {
+    hex::encode(uuid)
 }
 
 

@@ -2,7 +2,7 @@ use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
 use capsule::{Runtime, batch::{self, Batch, Pipeline, Poll, Disposition}, Mbuf, PortQueue, packets::{Ethernet, ip::v4::Ipv4, Udp, Packet}, net::MacAddr};
 
-use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, utils::{query_local_ip_address, generate_gdpname, set_payload, ipv4_addr_from_bytes, gdpname_byte_array_to_hex}, pipeline, router_store::Store};
+use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, utils::{query_local_ip_address, generate_gdpname, set_payload, ipv4_addr_from_bytes, gdpname_byte_array_to_hex, uuid_byte_array_to_hex}, pipeline, router_store::Store};
 use crate::utils::get_payload;
 
 
@@ -187,7 +187,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                     ,
                     GdpAction::PacketForward => |group| {
                         group.for_each(move |packet| {
-                            println!("Packet received, to be forward... packet series is {:?}. Coming from {:?}", packet.header().uuid, gdpname_byte_array_to_hex(packet.src()));
+                            println!("Packet received, to be forward... packet series is {:?}. Coming from {:?}", uuid_byte_array_to_hex(packet.header().uuid) , gdpname_byte_array_to_hex(packet.src()));
                             println!("{:?}", packet);
                             Ok(())
                         })

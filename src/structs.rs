@@ -26,6 +26,7 @@ impl TryFrom<u8> for GdpAction {
 }
 
 pub type GdpName = [u8; 32];
+pub type Uuid = [u8; 16];
 
 #[derive(Clone, Copy, Debug, SizeOf)]
 #[repr(C)]
@@ -36,7 +37,7 @@ pub struct GDPHeader {
     pub dst_gdpname: GdpName,
     pub num_packets: i32,
     pub packet_no: i32,
-    pub uuid: i128 // 128-bit uuid
+    pub uuid: Uuid // 128-bit uuid
 }
 
 
