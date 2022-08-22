@@ -37,7 +37,7 @@ impl LinkStateDatabase {
 
         // Update routing table
         for (dest, (next, cost)) in table {
-            if !self.routing_table.contains_key(&dest) || self.routing_table.get(&dest)?.1 > cost + 1 {
+            if !self.routing_table.contains_key(&dest) || self.routing_table.get(&dest).unwrap().1 > cost + 1 {
                 self.routing_table.insert(
                     dest,
                     (

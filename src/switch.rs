@@ -1,4 +1,4 @@
-use std::{fs, process::Command, net::Ipv4Addr, time::Duration, thread::sleep};
+use std::{fs, process::Command, net::Ipv4Addr, time::Duration, thread::sleep, str};
 use anyhow::Result;
 use capsule::{Runtime, batch::{self, Batch, Pipeline, Poll}, Mbuf, PortQueue, packets::{Ethernet, ip::v4::Ipv4, Udp, Packet}, net::MacAddr};
 use capsule::batch::Disposition;
@@ -72,10 +72,11 @@ pub fn send_neighbor_request(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>, 
     // Broadcasting the packet
     let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
     let dst_ip = access_point_addr;
+    let table_ser = lsdb.lock().unwrap().table_as_str().as_bytes();
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
         .map(move |reply| {
-            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, lsdb.lock().unwrap().table_as_str().as_bytes(), GdpAction::LSA)
+            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, table_ser, GdpAction::LSA)
         })
         .send(q.clone())
         .run_once();
@@ -222,9 +223,12 @@ fn switch_pipeline(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>) -> impl Pi
                         group.inspect(|disp| {
                             if let Disposition::Act(packet) = disp {
                                 println!("Received LSA...");
-                                let message = get_payload(packet).unwrap();
+                                let message = match str::from_utf8(get_payload(packet).unwrap()) {
+                                    Ok(v) => v,
+                                    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                                };
                                 println!("{:?}", message);
-                                lsdb.lock().unwrap().update_state(packet.src(), message);
+                                // lsdb.lock().unwrap().update_state(packet.src(), message);
                             }
                         })
                     }
