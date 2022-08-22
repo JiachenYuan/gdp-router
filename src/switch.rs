@@ -66,7 +66,7 @@ fn prepare_register_packet(
     }
 
 
-pub fn send_neighbor_request(q: PortQueue, db: Arc<Mutex<LinkStateDatabase>>, access_point_addr: Ipv4Addr) {
+pub fn send_neighbor_request(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>, access_point_addr: Ipv4Addr) {
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     // Broadcasting the packet
@@ -75,7 +75,7 @@ pub fn send_neighbor_request(q: PortQueue, db: Arc<Mutex<LinkStateDatabase>>, ac
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
         .map(move |reply| {
-            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, "test packet 123".as_bytes(), GdpAction::LSA)
+            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, lsdb.lock().unwrap().table_as_str().as_bytes(), GdpAction::LSA)
         })
         .send(q.clone())
         .run_once();
@@ -180,7 +180,7 @@ fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
 }
 
 
-fn switch_pipeline(q: PortQueue) -> impl Pipeline {
+fn switch_pipeline(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>) -> impl Pipeline {
     let local_ip_address = query_local_ip_address();
 
     let closure_q = q.clone();
@@ -224,6 +224,7 @@ fn switch_pipeline(q: PortQueue) -> impl Pipeline {
                                 println!("Received LSA...");
                                 let message = get_payload(packet).unwrap();
                                 println!("{:?}", message);
+                                lsdb.lock().unwrap().update_state(packet.src(), message);
                             }
                         })
                     }
@@ -286,7 +287,7 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
         }
 
         // Listen to incoming packets
-        switch_pipeline(q)
+        switch_pipeline(q, link_state.clone())
 
     })?
     
