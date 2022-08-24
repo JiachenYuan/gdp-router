@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use capsule::{packets::types::u16be, SizeOf};
+use capsule::SizeOf;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GdpAction {
@@ -8,6 +8,23 @@ pub enum GdpAction {
     RegisterAck = 2,
     PacketForward = 3,
     Noop = 4
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C, packed)]
+pub struct u16be(u16);
+
+impl From<u16> for u16be {
+    fn from(item: u16) -> Self {
+        u16be(u16::to_be(item))
+    }
+}
+
+impl From<u16be> for u16 {
+    fn from(item: u16be) -> Self {
+        u16::from_be(item.0)
+    }
 }
 
 impl TryFrom<u16be> for GdpAction {
@@ -20,7 +37,7 @@ impl TryFrom<u16be> for GdpAction {
             u16be(2) => Ok(GdpAction::RegisterAck),
             u16be(3) => Ok(GdpAction::PacketForward),
             u16be(4) => Ok(GdpAction::Noop),
-            unknown => Err(anyhow!("Unable to convert number {} into GDPAction. It is undefined", unknown)),
+            unknown => Err(anyhow!("Unable to convert number {:?} into GDPAction. It is undefined", unknown.0)),
         }
     }
 }
