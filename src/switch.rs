@@ -149,6 +149,8 @@ fn register_client(packet: &Gdp<Udp<Ipv4>>, store: Store) -> Result<()>{
 
 fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32], store: Store, local_ip_address: Ipv4Addr) -> impl Pipeline {
 
+    let local_mac_addr = q.mac_addr().clone();
+
     Poll::new(q.clone())
         .map(|packet| packet.parse::<Ethernet>()?.parse::<Ipv4>())
         // .inspect(|disp| {
@@ -186,12 +188,29 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                     }
                     ,
                     GdpAction::PacketForward => |group| {
-                        group.for_each(move |packet| {
+                        // group.for_each(move |packet| {
+                        //     println!("Packet received, to be forward... packet series is {:?}. Coming from {:?}, Destination is {:?}",
+                        //          uuid_byte_array_to_hex(packet.header().uuid) , gdpname_byte_array_to_hex(packet.src()), gdpname_byte_array_to_hex(packet.dst()));
+                        //     println!("{:?}", packet);
+                        //     Ok(())
+                        // })
+                        group.map(move |mut packet| {
                             println!("Packet received, to be forward... packet series is {:?}. Coming from {:?}, Destination is {:?}",
                                  uuid_byte_array_to_hex(packet.header().uuid) , gdpname_byte_array_to_hex(packet.src()), gdpname_byte_array_to_hex(packet.dst()));
-                            println!("UUID in bytes is {:?}", packet.header().uuid);
                             println!("{:?}", packet);
-                            Ok(())
+
+                            packet.set_dst(packet.src());
+                            packet.set_src(gdpname);
+
+                            let ip_layer = packet.envelope_mut().envelope_mut();
+                            ip_layer.set_dst(ip_layer.src());
+                            ip_layer.set_src(local_ip_address);
+
+                            let ether_layer = ip_layer.envelope_mut();
+                            ether_layer.set_src(local_mac_addr);
+
+                            
+                            Ok(packet)
                         })
                     }
 
