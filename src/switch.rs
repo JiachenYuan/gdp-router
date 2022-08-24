@@ -197,6 +197,8 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                         group.map(move |mut packet| {
                             println!("Packet received, to be forward... packet series is {:?}. Coming from {:?}, Destination is {:?}",
                                  uuid_byte_array_to_hex(packet.header().uuid) , gdpname_byte_array_to_hex(packet.src()), gdpname_byte_array_to_hex(packet.dst()));
+                            
+                            println!("Received>>>");
                             println!("{:?}", packet);
 
                             packet.set_dst(packet.src());
@@ -209,7 +211,8 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                             let ether_layer = ip_layer.envelope_mut();
                             ether_layer.set_src(local_mac_addr);
 
-                            
+                            println!("echo<<<");
+                            println!("{:?}", packet);
                             Ok(packet)
                         })
                     }
