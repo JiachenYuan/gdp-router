@@ -189,6 +189,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                         group.for_each(move |packet| {
                             println!("Packet received, to be forward... packet series is {:?}. Coming from {:?}, Destination is {:?}",
                                  uuid_byte_array_to_hex(packet.header().uuid) , gdpname_byte_array_to_hex(packet.src()), gdpname_byte_array_to_hex(packet.dst()));
+                            println!("UUID in bytes is {:?}", packet.header().uuid);
                             println!("{:?}", packet);
                             Ok(())
                         })
