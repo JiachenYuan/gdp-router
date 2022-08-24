@@ -28,7 +28,7 @@ impl<T: Packet> Gdp<T> {
 
     #[inline]
     pub fn set_action(&mut self, action: GdpAction) {
-        self.header_mut().action = action as u8;
+        self.header_mut().action = u16be(action as u16);
     }
 
     #[inline]
@@ -127,7 +127,7 @@ impl<T: Packet> Packet for Gdp<T> {
         let mbuf = envelope.mbuf_mut();
 
         mbuf.extend(offset, GDPHeader::size_of())?;
-        let header = mbuf.write_data(offset, &GDPHeader { action: 0, data_len: u16be::MIN, src_gdpname: [0; 32], dst_gdpname: [0; 32], num_packets: 1, packet_no: 1, uuid: [0; 16] })?;
+        let header = mbuf.write_data(offset, &GDPHeader { action: u16be(0), data_len: u16be::MIN, src_gdpname: [0; 32], dst_gdpname: [0; 32], num_packets: 1, packet_no: 1, uuid: [0; 16] })?;
 
         Ok(Gdp {
             envelope,

@@ -10,16 +10,16 @@ pub enum GdpAction {
     Noop = 4
 }
 
-impl TryFrom<u8> for GdpAction {
+impl TryFrom<u16be> for GdpAction {
     type Error = anyhow::Error;
 
-    fn try_from(v: u8) -> Result<Self> {
+    fn try_from(v: u16be) -> Result<Self> {
         match v {
-            0 => Ok(GdpAction::Ping),
-            1 => Ok(GdpAction::Register),
-            2 => Ok(GdpAction::RegisterAck),
-            3 => Ok(GdpAction::PacketForward),
-            4 => Ok(GdpAction::Noop),
+            u16be(0) => Ok(GdpAction::Ping),
+            u16be(1) => Ok(GdpAction::Register),
+            u16be(2) => Ok(GdpAction::RegisterAck),
+            u16be(3) => Ok(GdpAction::PacketForward),
+            u16be(4) => Ok(GdpAction::Noop),
             unknown => Err(anyhow!("Unable to convert number {} into GDPAction. It is undefined", unknown)),
         }
     }
@@ -31,7 +31,7 @@ pub type Uuid = [u8; 16];
 #[derive(Clone, Copy, Debug, SizeOf)]
 #[repr(C)]
 pub struct GDPHeader {
-    pub action: u8,
+    pub action: u16be,
     pub data_len: u16be,
     pub src_gdpname: GdpName,
     pub dst_gdpname: GdpName,
