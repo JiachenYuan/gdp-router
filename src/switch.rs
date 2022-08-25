@@ -182,6 +182,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                     ,
                     GdpAction::Register => |group| {
                         group.for_each(move |packet| {
+                            println!("{:?}", packet);
                             register_client(packet, store)
                         })
                         .filter(|_| { false })
@@ -221,7 +222,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                             Ok(packet)
                         })
                     }
-
+                    ,
 
 
                     _ => |group| {
