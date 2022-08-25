@@ -65,7 +65,10 @@ impl LinkStateDatabase {
         }
     }
 
-    pub fn table_as_str(self) -> String {
-        return serde_json::to_string(&(self.routing_table)).unwrap();
+    pub fn print_table(&mut self) -> () {
+        // Search routing table
+        for (key, value) in &self.routing_table {
+            println!("{}: next {}, cost {}", key, value.0, value.1);
+        }
     }
 }
