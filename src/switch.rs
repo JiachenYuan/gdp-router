@@ -138,7 +138,7 @@ fn register_client(packet: &Gdp<Udp<Ipv4>>, store: Store) -> Result<()>{
     let data = packet
         .mbuf()
         .read_data_slice(packet.payload_offset(), packet.data_len()).unwrap();
-    println!(":?", data);
+    println!("{:?}", data);
     let message: &[u8]= unsafe { data.as_ref() };
 
     println!("{:?} from {:?}", message, gdpname_byte_array_to_hex(client_gdpname));
