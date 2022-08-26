@@ -134,13 +134,8 @@ fn prepare_register_packet(
 
 fn register_client(packet: &Gdp<Udp<Ipv4>>, store: Store) -> Result<()>{
     let client_gdpname = packet.src();
-    // let message:&[u8] = get_payload(packet)?;
-    let data = packet
-        .mbuf()
-        .read_data_slice(packet.payload_offset(), packet.data_len()).unwrap();
-    println!("{:?}", data);
-    let message: &[u8]= unsafe { data.as_ref() };
-
+    let message:&[u8] = get_payload(packet)?;
+    
     println!("{:?} from {:?}", message, gdpname_byte_array_to_hex(client_gdpname));
 
     let sender_ip = ipv4_addr_from_bytes(message.try_into().unwrap());
