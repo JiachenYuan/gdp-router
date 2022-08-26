@@ -31,15 +31,13 @@ pub type Uuid = [u8; 16];
 #[derive(Clone, Copy, Debug, SizeOf)]
 #[repr(C)]
 pub struct GDPHeader {
-    pub action: u8,
-    pub data_len: u16be,
     pub src_gdpname: GdpName,
     pub dst_gdpname: GdpName,
     pub uuid: Uuid, // 128-bit uuid
     pub num_packets: i32,
     pub packet_no: i32,
-    
-    
+    pub data_len: u16be,
+    pub action: u8,
 }
 
 
