@@ -38,6 +38,7 @@ pub struct GDPHeader {
     pub packet_no: i32,
     pub data_len: u16be,
     pub action: u8,
+    pub ttl: u8
 }
 
 
