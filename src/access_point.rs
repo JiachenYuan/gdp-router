@@ -103,7 +103,13 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
                 ether_layer.set_src(q.mac_addr());
                 ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
             },
-            None => {}
+            None => {
+                // Just do broadcasting... Very wasteful
+                ip_layer.set_dst(Ipv4Addr::BROADCAST);
+                let ether_layer = ip_layer.envelope_mut();
+                ether_layer.set_src(q.mac_addr());
+                ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
+            }
         }
     }
     // It's broadcasting the forwarded packet, letting switch filtering the packet themselves...
