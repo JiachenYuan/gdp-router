@@ -71,12 +71,12 @@ fn register_and_ack(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, store: Store) -> Res
 
     println!("sending back the acknowledgement");
 
-    batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
-        .map(move |reply| {
-            prepare_ack_packet(reply, src_mac, src_ip, dst_mac, dst_ip, src_gdpname)
-        })
-        .send(q.clone())
-        .run_once();
+    // batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
+    //     .map(move |reply| {
+    //         prepare_ack_packet(reply, src_mac, src_ip, dst_mac, dst_ip, src_gdpname)
+    //     })
+    //     .send(q.clone())
+    //     .run_once();
 
     Ok(())
 }
