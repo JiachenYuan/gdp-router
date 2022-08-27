@@ -67,71 +67,6 @@ fn prepare_register_packet(
 
     }
 
-// fn prepare_test_packet(
-//     reply: Mbuf,
-//     src_gdpname: &[u8; 32],
-//     dst_gdpname: &[u8; 32],
-//     src_mac: MacAddr,
-//     src_ip: Ipv4Addr,
-//     dst_mac: MacAddr,
-//     dst_ip: Ipv4Addr,
-//     access_point_addr: Ipv4Addr,
-//     payload_size: usize
-// ) -> Result<Gdp<Udp<Ipv4>>> {
-
-//     let mut reply = reply.push::<Ethernet>()?;
-//     reply.set_src(src_mac);
-//     reply.set_dst(dst_mac);
-
-//     let mut reply = reply.push::<Ipv4>()?;
-//     reply.set_src(src_ip);
-//     // delegate public access point to forward packet
-//     reply.set_dst(access_point_addr);
-
-//     let mut reply = reply.push::<Udp<Ipv4>>()?;
-//     reply.set_src_port(31415);
-//     reply.set_dst_port(31415);
-
-//     // Setting Gdp-related information in the GDP header
-//     let mut reply = reply.push::<Gdp<Udp<Ipv4>>>()?;
-//     reply.set_action(GdpAction::Ping);
-//     reply.set_data_len(payload_size);
-//     let src_gdpname: [u8; 32] = Default::default();
-//     src_gdpname.copy_from_slice(&src_gdpname[..]);
-//     reply.set_src(src_gdpname);
-//     let dst_gdpname: [u8; 32] = Default::default();
-//     dst_gdpname.copy_from_slice(&dst_gdpname[..]);
-//     reply.set_dst(dst_gdpname);
-
-//     let offset = reply.payload_offset();
-
-//     let message = "this is a ping message...".as_bytes(); // This message has length 25 bytes, == payload_size
-
-//     // reply.mbuf_mut().extend(offset, payload_size)?;
-//     // reply.mbuf_mut().write_data_slice(offset, &message[..payload_size])?;
-//     set_payload(&mut reply, message);
-    
-//     reply.reconcile_all();
-
-//     Ok(reply)
-// }
-
-
-// fn send_test_packet(q: &PortQueue, access_point_addr: Ipv4Addr, target: Ipv4Addr) {
-//     let src_mac = q.mac_addr();
-//     let src_ip = query_local_ip_address();
-//     let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
-//     let dst_ip = target;
-//     let payload_size = 25;
-
-//     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
-//         .map(move |packet| {
-//             prepare_test_packet(packet, src_mac, src_ip, dst_mac, dst_ip, access_point_addr, payload_size)
-//         })
-//         .send(q.clone())
-//         .run_once();
-// }
-
 fn register_client(packet: &Gdp<Udp<Ipv4>>, store: Store) -> Result<()>{
     let client_gdpname = packet.src();
     let message:&[u8] = get_payload(packet)?;
@@ -144,6 +79,30 @@ fn register_client(packet: &Gdp<Udp<Ipv4>>, store: Store) -> Result<()>{
     println!("Current registered clients: {:?}", store.get_neighbors().read().unwrap());
 
     Ok(())
+}
+
+fn forward_packet(mut packet: Gdp<Udp<Ipv4>>, local_mac_address: MacAddr, access_point_addr: Ipv4Addr) -> Result<Gdp<Udp<Ipv4>>> {    
+    packet.header_mut().ttl -= 1;
+
+    let ip_layer = packet.envelope_mut().envelope_mut();
+    ip_layer.set_src(ip_layer.dst());
+    ip_layer.set_dst(access_point_addr);
+    
+    let ether_layer = ip_layer.envelope_mut();
+    ether_layer.set_src(local_mac_address);
+    Ok(packet)
+}
+
+fn to_client(mut packet:Gdp<Udp<Ipv4>>, local_ip: Ipv4Addr, client_addr: Ipv4Addr, local_mac_address: MacAddr) -> Result<Gdp<Udp<Ipv4>>> {
+    packet.header_mut().ttl -= 1;
+    
+    let ip_layer = packet.envelope_mut().envelope_mut();
+    ip_layer.set_src(local_ip);
+    ip_layer.set_dst(client_addr);
+
+    let ether_layer = ip_layer.envelope_mut();
+    ether_layer.set_src(local_mac_address);
+    Ok(packet)
 }
 
 
@@ -196,30 +155,16 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                         //     Ok(())
                         // })
                         group.map(move |mut packet| {
-                            println!("Packet received, to be forward... packet series is {:?}. Coming from {:?}, Destination is {:?}",
-                                 uuid_byte_array_to_hex(packet.header().uuid) , gdpname_byte_array_to_hex(packet.src()), gdpname_byte_array_to_hex(packet.dst()));
+                            println!("Packet forwarded");
+                            let gdpname_hash_map = store.get_neighbors().read().unwrap();
+                            let value_option = gdpname_hash_map.get(&packet.dst());
+                            if let Some(client_addr) = value_option{
+                                to_client(packet, local_ip_address, *client_addr, local_mac_addr)
+                            } else {
+                                forward_packet(packet, local_mac_addr, access_point_addr)
+                            }
+
                             
-                            println!("Received>>>");
-                            println!("{:?}", packet);
-
-                            packet.set_dst(packet.src());
-                            packet.set_src(gdpname);
-
-                            let udp_layer = packet.envelope_mut();
-                            udp_layer.set_dst_port(31415);
-                            udp_layer.set_src_port(31415);
-
-
-                            let ip_layer = udp_layer.envelope_mut();
-                            ip_layer.set_dst(ip_layer.src());
-                            ip_layer.set_src(local_ip_address);
-
-                            let ether_layer = ip_layer.envelope_mut();
-                            ether_layer.set_src(local_mac_addr);
-
-                            println!("echo<<<");
-                            println!("{:?}", packet);
-                            Ok(packet)
                         })
                     }
                     ,
