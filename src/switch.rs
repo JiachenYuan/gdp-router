@@ -1,9 +1,10 @@
 use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
-use capsule::{Runtime, batch::{self, Batch, Pipeline, Poll, Disposition}, Mbuf, PortQueue, packets::{Ethernet, ip::v4::Ipv4, Udp, Packet}, net::MacAddr};
+use capsule::{Runtime, batch::{self, Batch, Pipeline, Poll, Disposition, Either}, Mbuf, PortQueue, packets::{Ethernet, ip::v4::Ipv4, Udp, Packet}, net::MacAddr};
 
 use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, utils::{query_local_ip_address, generate_gdpname, set_payload, ipv4_addr_from_bytes, gdpname_byte_array_to_hex, uuid_byte_array_to_hex}, pipeline, router_store::Store};
 use crate::utils::get_payload;
+
 
 
 
@@ -81,8 +82,8 @@ fn register_client(packet: &Gdp<Udp<Ipv4>>, store: Store) -> Result<()>{
     Ok(())
 }
 
-fn forward_packet(mut packet: Gdp<Udp<Ipv4>>, local_mac_address: MacAddr, access_point_addr: Ipv4Addr) -> Result<Gdp<Udp<Ipv4>>> {    
-    packet.header_mut().ttl -= 1;
+fn forward_packet(mut packet: Gdp<Udp<Ipv4>>, local_mac_address: MacAddr, access_point_addr: Ipv4Addr) -> Result<Either<Gdp<Udp<Ipv4>>>> {    
+    
 
     let ip_layer = packet.envelope_mut().envelope_mut();
     ip_layer.set_src(ip_layer.dst());
@@ -90,11 +91,11 @@ fn forward_packet(mut packet: Gdp<Udp<Ipv4>>, local_mac_address: MacAddr, access
     
     let ether_layer = ip_layer.envelope_mut();
     ether_layer.set_src(local_mac_address);
-    Ok(packet)
+    Ok(Either::Keep(packet))
 }
 
-fn to_client(mut packet:Gdp<Udp<Ipv4>>, local_ip: Ipv4Addr, client_addr: Ipv4Addr, local_mac_address: MacAddr) -> Result<Gdp<Udp<Ipv4>>> {
-    packet.header_mut().ttl -= 1;
+fn to_client(mut packet:Gdp<Udp<Ipv4>>, local_ip: Ipv4Addr, client_addr: Ipv4Addr, local_mac_address: MacAddr) -> Result<Either<Gdp<Udp<Ipv4>>>> {
+    
     
     let ip_layer = packet.envelope_mut().envelope_mut();
     ip_layer.set_src(local_ip);
@@ -102,7 +103,7 @@ fn to_client(mut packet:Gdp<Udp<Ipv4>>, local_ip: Ipv4Addr, client_addr: Ipv4Add
 
     let ether_layer = ip_layer.envelope_mut();
     ether_layer.set_src(local_mac_address);
-    Ok(packet)
+    Ok(Either::Keep(packet))
 }
 
 
@@ -157,7 +158,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                         //     println!("{:?}", packet);
                         //     Ok(())
                         // })
-                        group.map(move |mut packet| {
+                        group.filter_map(move |mut packet| {
                             
                             let gdpname_hash_map = store.get_neighbors().read().unwrap(); 
                             let value_option = gdpname_hash_map.get(&packet.dst());
@@ -165,8 +166,14 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                                 println!("Found client, sending to client");
                                 to_client(packet, local_ip_address, *client_addr, local_mac_addr)
                             } else {
-                                println!("Sending to access point");
-                                forward_packet(packet, local_mac_addr, access_point_addr)
+                                let ip_layer = packet.envelope_mut().envelope_mut();
+                                if !( ip_layer.src() == access_point_addr && ip_layer.dst() == Ipv4Addr::BROADCAST) {
+                                    Ok(Either::Drop(packet.reset()))
+                                } else {
+                                    println!("Sending to access point");
+                                    forward_packet(packet, local_mac_addr, access_point_addr)
+                                }
+                                
                             }
 
                             
