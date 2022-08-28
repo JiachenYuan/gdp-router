@@ -89,7 +89,7 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
     // Currently only supports one level forward
     if intended_gdpname != local_gdpname {
         let gdpname_hash_map = store.get_neighbors().read().unwrap();
-        println!("Forwarding to {:?}", intended_gdpname);
+        
         // println!("Current neighbors: {:?}", *gdpname_hash_map);
         let ip_layer = packet.envelope_mut().envelope_mut();
         ip_layer.set_src(local_ip);
@@ -97,6 +97,7 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
         let new_dst_ip = gdpname_hash_map.get(&intended_gdpname);
         match new_dst_ip {
             Some(target_switch_ip) => {
+                println!("Forwarding to {:?}", intended_gdpname);
                 // println!("Adjusting destination");
                 ip_layer.set_dst(*target_switch_ip);
                 let ether_layer = ip_layer.envelope_mut();
@@ -105,6 +106,7 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
             },
             None => {
                 // Just do broadcasting... Very wasteful
+                println!("Didn't find recipient on my side, broadcasting");
                 ip_layer.set_dst(Ipv4Addr::BROADCAST);
                 let ether_layer = ip_layer.envelope_mut();
                 ether_layer.set_src(q.mac_addr());

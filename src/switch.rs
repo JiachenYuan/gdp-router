@@ -156,7 +156,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                         // })
                         group.map(move |mut packet| {
                             println!("Packet forwarded");
-                            let gdpname_hash_map = store.get_neighbors().read().unwrap();
+                            let gdpname_hash_map = store.get_neighbors().read().unwrap(); 
                             let value_option = gdpname_hash_map.get(&packet.dst());
                             if let Some(client_addr) = value_option{
                                 to_client(packet, local_ip_address, *client_addr, local_mac_addr)
