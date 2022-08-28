@@ -159,6 +159,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                         //     println!("{:?}", packet);
                         //     Ok(())
                         // })
+                        println!("packet to forward");
                         group.filter_map(move |mut packet| {
                             
                             let gdpname_hash_map = store.get_neighbors().read().unwrap(); 
