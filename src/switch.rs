@@ -1,6 +1,7 @@
 use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
 use capsule::{Runtime, batch::{self, Batch, Pipeline, Poll, Disposition, Either}, Mbuf, PortQueue, packets::{Ethernet, ip::v4::Ipv4, Udp, Packet}, net::MacAddr};
+use tracing::debug;
 
 use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, utils::{query_local_ip_address, generate_gdpname, set_payload, ipv4_addr_from_bytes, gdpname_byte_array_to_hex, uuid_byte_array_to_hex}, pipeline, router_store::Store};
 use crate::utils::get_payload;
@@ -163,14 +164,14 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                             let gdpname_hash_map = store.get_neighbors().read().unwrap(); 
                             let value_option = gdpname_hash_map.get(&packet.dst());
                             if let Some(client_addr) = value_option{
-                                println!("Found client, sending to client");
+                                debug!("Found client, sending to client");
                                 to_client(packet, local_ip_address, *client_addr, local_mac_addr)
                             } else {
                                 let ip_layer = packet.envelope_mut().envelope_mut();
                                 if !( ip_layer.src() == access_point_addr && ip_layer.dst() == Ipv4Addr::BROADCAST) {
                                     Ok(Either::Drop(packet.reset()))
                                 } else {
-                                    println!("Sending to access point");
+                                    debug!("Sending to access point");
                                     forward_packet(packet, local_mac_addr, access_point_addr)
                                 }
                                 
