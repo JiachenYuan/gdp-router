@@ -117,7 +117,10 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
         //         println!("{:?}", v4.src());
         //     }
         // })
-        .filter(move |packet| packet.dst() == local_ip_address)
+        .filter(move |packet| {
+                (packet.dst() == local_ip_address) || (packet.src() == access_point_addr && packet.dst() == Ipv4Addr::BROADCAST)
+            }
+        )
         .map(|packet| packet.parse::<Udp<Ipv4>>()?.parse::<Gdp<Udp<Ipv4>>>())
         .group_by (
             |packet| packet.action().unwrap(),
