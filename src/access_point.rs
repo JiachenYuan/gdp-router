@@ -156,6 +156,7 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                 group.for_each(move |packet| {
                                     let payload = get_payload(packet).unwrap();
                                     let json_string = std::str::from_utf8(payload).unwrap();
+                                    println!("{:?}", json_string);
                                     let topic_request:TopicRequest = serde_json::from_str(json_string).unwrap();
                                     println!("{:?}", topic_request);
                                     Ok(())
