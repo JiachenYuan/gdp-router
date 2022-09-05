@@ -167,7 +167,9 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                     println!("{:?}", topic_request);
                                     let topic_gdpname_int = topic_request.topic_gdpname.parse::<U256>();
                                     let mut buffer: [u8;32] = [0;32];
-                                    topic_gdpname_int.unwrap().to_big_endian( &mut buffer);
+                                    let int: U256 = topic_gdpname_int.unwrap();
+                                    println!("{:?}", int);
+                                    int.to_big_endian( &mut buffer);
                                     println!("{:?}", buffer);
                                     Ok(())
 
