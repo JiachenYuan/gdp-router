@@ -7,7 +7,9 @@ pub enum GdpAction {
     Register = 1,
     RegisterAck = 2,
     PacketForward = 3,
-    Noop = 4
+    Noop = 4,
+    TopicAdvertise = 5,
+    TopicMessage = 6
 }
 
 impl TryFrom<u8> for GdpAction {
@@ -20,6 +22,8 @@ impl TryFrom<u8> for GdpAction {
             2 => Ok(GdpAction::RegisterAck),
             3 => Ok(GdpAction::PacketForward),
             4 => Ok(GdpAction::Noop),
+            5 => Ok(GdpAction::TopicAdvertise),
+            6 => Ok(GdpAction::TopicMessage),
             unknown => Err(anyhow!("Unable to convert number {} into GDPAction. It is undefined", unknown)),
         }
     }

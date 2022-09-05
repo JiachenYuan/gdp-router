@@ -2,6 +2,7 @@ use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
 
 use capsule::{batch::{Pipeline, Poll, Batch, self}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
+use serde::{Deserialize, Serialize};
 use crate::{utils::{query_local_ip_address, get_payload, ipv4_addr_from_bytes, generate_gdpname}, network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, router_store::Store,};
 use crate::pipeline;
 
@@ -119,6 +120,12 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
     Ok(packet)
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct TopicRequest {
+    topic_name: String,
+    topic_gdpname: GdpName,
+    is_pub: String,
+}
 
 fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipeline {
     let local_ip_address = query_local_ip_address();
@@ -142,6 +149,18 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                 group.for_each(move |register_packet| {
                                     println!("processing switch register request");
                                     register_and_ack(&q_clone_for_closure1, register_packet, store)
+                                })
+                            }
+                            ,
+                            GdpAction::TopicAdvertise => |group| {
+                                group.for_each(move |packet| {
+                                    let payload = get_payload(packet).unwrap();
+                                    let json_string = std::str::from_utf8(payload).unwrap();
+                                    let topic_request:TopicRequest = serde_json::from_str(json_string).unwrap();
+                                    println!("{:?}", topic_request);
+                                    Ok(())
+
+                                    
                                 })
                             }
                             ,
