@@ -123,7 +123,7 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
 #[derive(Debug, Deserialize, Serialize)]
 struct TopicRequest {
     topic_name: String,
-    topic_gdpname: GdpName,
+    topic_gdpname: String,
     is_pub: String,
 }
 
@@ -159,6 +159,10 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                     println!("{:?}", json_string);
                                     let topic_request:TopicRequest = serde_json::from_str(json_string).unwrap();
                                     println!("{:?}", topic_request);
+                                    let temp:&[u8] = topic_request.topic_gdpname.as_bytes();
+                                    let mut topic_gdpname: [u8; 32] = Default::default();
+                                    topic_gdpname.copy_from_slice(temp);
+                                    println!("{:?}", topic_gdpname);
                                     Ok(())
 
                                     
