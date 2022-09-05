@@ -129,7 +129,7 @@ struct Obj {
 #[derive(Debug, Deserialize, Serialize)]
 struct TopicRequest {
     topic_name: String,
-    topic_gdpname: String,
+    topic_gdpname: Vec<u8>,
     is_pub: String,
 }
 
@@ -165,12 +165,13 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                     println!("{:?}", json_string);
                                     let topic_request:TopicRequest = serde_json::from_str(json_string).unwrap();
                                     println!("{:?}", topic_request);
-                                    let topic_gdpname_int = topic_request.topic_gdpname.parse::<U256>();
-                                    let mut buffer: [u8;32] = [0;32];
-                                    let int: U256 = topic_gdpname_int.unwrap();
-                                    println!("{:?}", int);
-                                    int.to_big_endian( &mut buffer);
-                                    println!("{:?}", buffer);
+                                    println!("{:?}", topic_request.topic_gdpname);
+                                    // let topic_gdpname_int = topic_request.topic_gdpname.parse::<U256>();
+                                    // let mut buffer: [u8;32] = [0;32];
+                                    // let int: U256 = topic_gdpname_int.unwrap();
+                                    // println!("{:?}", int);
+                                    // int.to_big_endian( &mut buffer);
+                                    // println!("{:?}", buffer);
                                     Ok(())
 
                                     
