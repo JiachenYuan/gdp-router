@@ -1,4 +1,4 @@
-use std::{fs, process::Command, net::Ipv4Addr};
+use std::{fs, process::Command, net::Ipv4Addr, collections::{HashMap, HashSet}, hash::Hash};
 use anyhow::Result;
 
 use capsule::{batch::{Pipeline, Poll, Batch}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
@@ -123,14 +123,44 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
 
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Obj {
-    topic_request: TopicRequest
-}
-#[derive(Debug, Deserialize, Serialize)]
 struct TopicRequest {
     topic_name: String,
     topic_gdpname: Vec<u8>,
     is_pub: String,
+}
+
+fn register_topic(client_gdpname: GdpName, topic_request: TopicRequest, store: Store) -> Result<()>{
+    let mut topic_gdpname: [u8; 32] = [0; 32];
+    for i in 0..32 {
+        topic_gdpname[i] = *topic_request.topic_gdpname.get(i).unwrap();
+    }
+    
+    let mut router_info = store.get_topic_info().write().unwrap();
+    let mut topic_name_map = store.get_topic_name_map().write().unwrap();
+
+    if topic_request.topic_name != "__" {
+        topic_name_map.insert(topic_request.topic_name.clone(), topic_gdpname);
+        let mut hashset_pub: HashSet<GdpName> = HashSet::new();
+        let mut hashset_sub: HashSet<GdpName> = HashSet::new();
+        let mut pub_sub_map = HashMap::new();
+        pub_sub_map.insert("publisher".to_string(), hashset_pub);
+        pub_sub_map.insert("subscriber".to_string(), hashset_sub);
+        router_info.insert(topic_gdpname, pub_sub_map);
+    }
+
+    if topic_request.is_pub == "1".to_string() {
+        let set = router_info.get_mut(&topic_gdpname).unwrap().get_mut("publisher").unwrap();
+        set.insert(client_gdpname);
+    } else {
+        let set = router_info.get_mut(&topic_gdpname).unwrap().get_mut("subscriber").unwrap();
+        set.insert(client_gdpname);
+    }
+
+    // !!!!!
+    println!("topic_name_map is = {:?}", topic_name_map);
+    println!("router_info is = {:?}", router_info);
+
+    Ok(())
 }
 
 fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipeline {
@@ -162,17 +192,9 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                 group.for_each(move |packet| {
                                     let payload = get_payload(packet).unwrap();
                                     let json_string = std::str::from_utf8(payload).unwrap();
-                                    println!("{:?}", json_string);
                                     let topic_request:TopicRequest = serde_json::from_str(json_string).unwrap();
-                                    println!("{:?}", topic_request);
-                                    println!("{:?}", topic_request.topic_gdpname);
-                                    // let topic_gdpname_int = topic_request.topic_gdpname.parse::<U256>();
-                                    // let mut buffer: [u8;32] = [0;32];
-                                    // let int: U256 = topic_gdpname_int.unwrap();
-                                    // println!("{:?}", int);
-                                    // int.to_big_endian( &mut buffer);
-                                    // println!("{:?}", buffer);
-                                    Ok(())
+                                    register_topic(packet.src(), topic_request, store)
+                                    
 
                                     
                                 })
