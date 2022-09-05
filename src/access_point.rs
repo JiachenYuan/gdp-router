@@ -2,7 +2,7 @@ use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
 
 use capsule::{batch::{Pipeline, Poll, Batch}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
-use primitive_types::U256;
+use ethereum_types::U256;
 use serde::{Deserialize, Serialize};
 use crate::{utils::{query_local_ip_address, get_payload, ipv4_addr_from_bytes, generate_gdpname}, network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, router_store::Store,};
 use crate::pipeline;
