@@ -1,7 +1,8 @@
 use std::{fs, process::Command, net::Ipv4Addr};
 use anyhow::Result;
 
-use capsule::{batch::{Pipeline, Poll, Batch, self}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
+use capsule::{batch::{Pipeline, Poll, Batch}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
+use primitive_types::U256;
 use serde::{Deserialize, Serialize};
 use crate::{utils::{query_local_ip_address, get_payload, ipv4_addr_from_bytes, generate_gdpname}, network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, router_store::Store,};
 use crate::pipeline;
@@ -120,6 +121,11 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
     Ok(packet)
 }
 
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Obj {
+    topic_request: TopicRequest
+}
 #[derive(Debug, Deserialize, Serialize)]
 struct TopicRequest {
     topic_name: String,
@@ -159,10 +165,10 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                     println!("{:?}", json_string);
                                     let topic_request:TopicRequest = serde_json::from_str(json_string).unwrap();
                                     println!("{:?}", topic_request);
-                                    let temp:&[u8] = topic_request.topic_gdpname.as_bytes();
-                                    let mut topic_gdpname: [u8; 32] = Default::default();
-                                    topic_gdpname.copy_from_slice(temp);
-                                    println!("{:?}", topic_gdpname);
+                                    let topic_gdpname_int = topic_request.topic_gdpname.parse::<U256>();
+                                    let mut buffer: [u8;32] = [0;32];
+                                    topic_gdpname_int.unwrap().to_big_endian( &mut buffer);
+                                    println!("{:?}", buffer);
                                     Ok(())
 
                                     
