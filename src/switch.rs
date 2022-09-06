@@ -194,14 +194,16 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                         // group.map(move |packet| {
                         //     forward_packet(packet, local_mac_addr, access_point_addr)
                         // })
-                        group.filter_map(move |packet| {
+                        group.filter_map(move |mut packet| {
                             if packet.dst() == [0u8; 32] {
                                 // forward to client
                                 let gdpname_hash_map = store.get_neighbors().read().unwrap();
-                                let mut iter = gdpname_hash_map.values();
+                                // let mut iter = gdpname_hash_map.values();
+                                let mut iter = gdpname_hash_map.iter();
                                 // Assume at most 1 gdp client for each switch
-                                let client_ip = iter.next().unwrap();
+                                let (client_gdpname, client_ip) = iter.next().unwrap();
                                 debug!("Found client, sending to client. Type = TopicMessage");
+                                packet.set_dst(client_gdpname.clone());
                                 Ok(Either::Keep(to_client(packet, local_ip_address, client_ip.clone(), local_mac_addr).unwrap()))
                                 
                             } else {

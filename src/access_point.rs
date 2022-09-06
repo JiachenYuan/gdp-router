@@ -202,10 +202,10 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                             GdpAction::TopicMessage => |group| {
                                 group.map(move |mut packet| {
                                     let topic_gdpname = packet.dst();
-                                    let router_info = store.get_topic_info().read().unwrap();
-                                    let subscriber_gdpnames = router_info.get(&topic_gdpname).unwrap().get("subscriber").unwrap();
+                                    // let router_info = store.get_topic_info().read().unwrap();
+                                    // let subscriber_gdpnames = router_info.get(&topic_gdpname).unwrap().get("subscriber").unwrap();
                                     // todo: Currently not using subscriber gdpnames, just broadcasting. 
-                                    let payload = get_payload(&packet).unwrap();
+                                    // let payload = get_payload(&packet).unwrap();
                                     packet.set_src(topic_gdpname);
                                     packet.set_dst([0u8;32]);
                                     let ip_layer = packet.envelope_mut().envelope_mut();
