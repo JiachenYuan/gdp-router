@@ -208,8 +208,17 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                                 
                             } else {
                                 // forward to access point
-                                debug!("Sending to access point. Type = TopicMessage");
-                                Ok(Either::Keep(forward_packet(packet, local_mac_addr, access_point_addr).unwrap()))
+                                // debug!("Sending to access point. Type = TopicMessage");
+                                // Ok(Either::Keep(forward_packet(packet, local_mac_addr, access_point_addr).unwrap()))
+                                packet.set_src(packet.dst());
+                                packet.set_dst([0u8; 32]);
+                                let ip_layer = packet.envelope_mut().envelope_mut();
+                                ip_layer.set_src(local_ip_address);
+                                ip_layer.set_dst(Ipv4Addr::BROADCAST);
+                                
+                                let ether_layer = ip_layer.envelope_mut();
+                                ether_layer.set_src(local_mac_addr);
+                                Ok(Either::Keep(packet))
                             }
                         })
                     }

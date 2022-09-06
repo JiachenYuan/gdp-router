@@ -202,23 +202,26 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                             }
                             ,
                             GdpAction::TopicMessage => |group| {
-                                group.map(move |mut packet| {
-                                    let topic_gdpname = packet.dst();
-                                    // let router_info = store.get_topic_info().read().unwrap();
-                                    // let subscriber_gdpnames = router_info.get(&topic_gdpname).unwrap().get("subscriber").unwrap();
-                                    // todo: Currently not using subscriber gdpnames, just broadcasting. 
-                                    // let payload = get_payload(&packet).unwrap();
-                                    debug!("Received topic message, broadcasting...");
-                                    packet.set_src(topic_gdpname.clone());
-                                    packet.set_dst([0u8;32]);
-                                    let ip_layer = packet.envelope_mut().envelope_mut();
-                                    ip_layer.set_src(locao_ip_address_clone);
-                                    ip_layer.set_dst(Ipv4Addr::BROADCAST);
-                                    let ether_layer = ip_layer.envelope_mut();
-                                    ether_layer.set_src(local_mac_addr.clone());
-                                    ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
-                                    debug!("Message broadcasted..");
-                                    Ok(packet)
+                                // group.map(move |mut packet| {
+                                //     let topic_gdpname = packet.dst();
+                                //     // let router_info = store.get_topic_info().read().unwrap();
+                                //     // let subscriber_gdpnames = router_info.get(&topic_gdpname).unwrap().get("subscriber").unwrap();
+                                //     // todo: Currently not using subscriber gdpnames, just broadcasting. 
+                                //     // let payload = get_payload(&packet).unwrap();
+                                //     debug!("Received topic message, broadcasting...");
+                                //     packet.set_src(topic_gdpname.clone());
+                                //     packet.set_dst([0u8;32]);
+                                //     let ip_layer = packet.envelope_mut().envelope_mut();
+                                //     ip_layer.set_src(locao_ip_address_clone);
+                                //     ip_layer.set_dst(Ipv4Addr::BROADCAST);
+                                //     let ether_layer = ip_layer.envelope_mut();
+                                //     ether_layer.set_src(local_mac_addr.clone());
+                                //     ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
+                                //     debug!("Message broadcasted..");
+                                //     Ok(packet)
+                                // })
+                                group.filter(|_| {
+                                    false
                                 })
                             }
                             ,
