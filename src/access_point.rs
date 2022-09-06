@@ -1,11 +1,12 @@
 use std::{fs, process::Command, net::Ipv4Addr, collections::{HashMap, HashSet}, hash::Hash};
 use anyhow::Result;
-
+use tracing::debug;
 use capsule::{batch::{Pipeline, Poll, Batch, Either, self}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
 use ethereum_types::U256;
 use serde::{Deserialize, Serialize};
 use crate::{utils::{query_local_ip_address, get_payload, ipv4_addr_from_bytes, generate_gdpname}, network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, router_store::Store,};
 use crate::pipeline;
+
 
 fn register_neighbor(src_gdpname: [u8; 32], ip_addr: Ipv4Addr, store: Store) {
     store.get_neighbors().write().unwrap().insert(src_gdpname, ip_addr);
@@ -206,14 +207,16 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                     // let subscriber_gdpnames = router_info.get(&topic_gdpname).unwrap().get("subscriber").unwrap();
                                     // todo: Currently not using subscriber gdpnames, just broadcasting. 
                                     // let payload = get_payload(&packet).unwrap();
-                                    packet.set_src(topic_gdpname);
+                                    debug!("Received topic message, broadcasting...");
+                                    packet.set_src(topic_gdpname.clone());
                                     packet.set_dst([0u8;32]);
                                     let ip_layer = packet.envelope_mut().envelope_mut();
                                     ip_layer.set_src(local_ip_address);
                                     ip_layer.set_dst(Ipv4Addr::BROADCAST);
                                     let ether_layer = ip_layer.envelope_mut();
-                                    ether_layer.set_src(local_mac_addr);
+                                    ether_layer.set_src(local_mac_addr.clone());
                                     ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
+                                    debug!("Message broadcasted..");
                                     Ok(packet)
                                 })
                             }
