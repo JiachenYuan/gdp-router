@@ -167,14 +167,14 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                             let value_option = gdpname_hash_map.get(&packet.dst());
                             debug!("Querying done");
                             if let Some(client_addr) = value_option{
-                                debug!("Found client, sending to client");
+                                debug!("Found client, sending to client. Type = PacketForward");
                                 Ok(Either::Keep(to_client(packet, local_ip_address, client_addr.clone(), local_mac_addr).unwrap()))
                             } else {
                                 let ip_layer = packet.envelope_mut().envelope_mut();
                                 if ip_layer.src() == access_point_addr && ip_layer.dst() == Ipv4Addr::BROADCAST {
                                     Ok(Either::Drop(packet.reset()))
                                 } else {
-                                    debug!("Sending to access point");
+                                    debug!("Sending to access point. Type = PacketForward");
                                     Ok(Either::Keep(forward_packet(packet, local_mac_addr, access_point_addr).unwrap()))
                                 }
                                 
@@ -191,8 +191,24 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                     }
                     ,
                     GdpAction::TopicMessage => |group| {
-                        group.map(move |packet| {
-                            forward_packet(packet, local_mac_addr, access_point_addr)
+                        // group.map(move |packet| {
+                        //     forward_packet(packet, local_mac_addr, access_point_addr)
+                        // })
+                        group.filter_map(move |packet| {
+                            if packet.dst() == [0u8; 32] {
+                                // forward to client
+                                let gdpname_hash_map = store.get_neighbors().read().unwrap();
+                                let mut iter = gdpname_hash_map.values();
+                                // Assume at most 1 gdp client for each switch
+                                let client_ip = iter.next().unwrap();
+                                debug!("Found client, sending to client. Type = TopicMessage");
+                                Ok(Either::Keep(to_client(packet, local_ip_address, client_ip.clone(), local_mac_addr).unwrap()))
+                                
+                            } else {
+                                // forward to access point
+                                debug!("Sending to access point. Type = TopicMessage");
+                                Ok(Either::Keep(forward_packet(packet, local_mac_addr, access_point_addr).unwrap()))
+                            }
                         })
                     }
                     ,

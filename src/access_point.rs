@@ -1,7 +1,7 @@
 use std::{fs, process::Command, net::Ipv4Addr, collections::{HashMap, HashSet}, hash::Hash};
 use anyhow::Result;
 
-use capsule::{batch::{Pipeline, Poll, Batch}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
+use capsule::{batch::{Pipeline, Poll, Batch, Either, self}, PortQueue, Runtime, packets::{Ethernet, Packet, ip::v4::Ipv4, Udp}, Mbuf, net::MacAddr};
 use ethereum_types::U256;
 use serde::{Deserialize, Serialize};
 use crate::{utils::{query_local_ip_address, get_payload, ipv4_addr_from_bytes, generate_gdpname}, network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, router_store::Store,};
@@ -50,9 +50,6 @@ fn prepare_ack_packet(
         reply.reconcile_all();
     
         Ok(reply)
-    
-        
-    
     }
 
 
@@ -122,14 +119,15 @@ fn prepare_packet_forward_if_needed(q: &PortQueue, local_gdpname: GdpName, mut p
 }
 
 
+
 #[derive(Debug, Deserialize, Serialize)]
-struct TopicRequest {
+struct TopicAdvertise {
     topic_name: String,
     topic_gdpname: Vec<u8>,
     is_pub: String,
 }
 
-fn register_topic(client_gdpname: GdpName, topic_request: TopicRequest, store: Store) -> Result<()>{
+fn register_topic(client_gdpname: GdpName, topic_request: TopicAdvertise, store: Store) -> Result<()>{
     let mut topic_gdpname: [u8; 32] = [0; 32];
     for i in 0..32 {
         topic_gdpname[i] = *topic_request.topic_gdpname.get(i).unwrap();
@@ -140,8 +138,8 @@ fn register_topic(client_gdpname: GdpName, topic_request: TopicRequest, store: S
 
     if topic_request.topic_name != "__" {
         topic_name_map.insert(topic_request.topic_name.clone(), topic_gdpname);
-        let mut hashset_pub: HashSet<GdpName> = HashSet::new();
-        let mut hashset_sub: HashSet<GdpName> = HashSet::new();
+        let hashset_pub: HashSet<GdpName> = HashSet::new();
+        let hashset_sub: HashSet<GdpName> = HashSet::new();
         let mut pub_sub_map = HashMap::new();
         pub_sub_map.insert("publisher".to_string(), hashset_pub);
         pub_sub_map.insert("subscriber".to_string(), hashset_sub);
@@ -156,17 +154,21 @@ fn register_topic(client_gdpname: GdpName, topic_request: TopicRequest, store: S
         set.insert(client_gdpname);
     }
 
-    // !!!!!
-    println!("topic_name_map is = {:?}", topic_name_map);
-    println!("router_info is = {:?}", router_info);
+    
+    println!("topic_name_map is = {:?}\n", topic_name_map);
+    println!("router_info is = {:?}\n\n", router_info);
 
     Ok(())
 }
+
+
+
 
 fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipeline {
     let local_ip_address = query_local_ip_address();
     let q_clone_for_closure1 = q.clone();
     let q_clone_for_closure2 = q.clone();
+    let local_mac_addr = q.mac_addr();
 
     Poll::new(q.clone())
         .map(|packet| {
@@ -192,11 +194,27 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                 group.for_each(move |packet| {
                                     let payload = get_payload(packet).unwrap();
                                     let json_string = std::str::from_utf8(payload).unwrap();
-                                    let topic_request:TopicRequest = serde_json::from_str(json_string).unwrap();
+                                    let topic_request:TopicAdvertise = serde_json::from_str(json_string).unwrap();
                                     register_topic(packet.src(), topic_request, store)
-                                    
-
-                                    
+                                })
+                            }
+                            ,
+                            GdpAction::TopicMessage => |group| {
+                                group.map(move |mut packet| {
+                                    let topic_gdpname = packet.dst();
+                                    let router_info = store.get_topic_info().read().unwrap();
+                                    let subscriber_gdpnames = router_info.get(&topic_gdpname).unwrap().get("subscriber").unwrap();
+                                    // todo: Currently not using subscriber gdpnames, just broadcasting. 
+                                    let payload = get_payload(&packet).unwrap();
+                                    packet.set_src(topic_gdpname);
+                                    packet.set_dst([0u8;32]);
+                                    let ip_layer = packet.envelope_mut().envelope_mut();
+                                    ip_layer.set_src(local_ip_address);
+                                    ip_layer.set_dst(Ipv4Addr::BROADCAST);
+                                    let ether_layer = ip_layer.envelope_mut();
+                                    ether_layer.set_src(local_mac_addr);
+                                    ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
+                                    Ok(packet)
                                 })
                             }
                             ,
