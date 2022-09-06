@@ -167,6 +167,7 @@ fn register_topic(client_gdpname: GdpName, topic_request: TopicAdvertise, store:
 
 fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipeline {
     let local_ip_address = query_local_ip_address();
+    let locao_ip_address_clone = local_ip_address.clone();
     let q_clone_for_closure1 = q.clone();
     let q_clone_for_closure2 = q.clone();
     let local_mac_addr = q.mac_addr();
@@ -201,7 +202,7 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                             }
                             ,
                             GdpAction::TopicMessage => |group| {
-                                group.filter_map(move |mut packet| {
+                                group.map(move |mut packet| {
                                     let topic_gdpname = packet.dst();
                                     // let router_info = store.get_topic_info().read().unwrap();
                                     // let subscriber_gdpnames = router_info.get(&topic_gdpname).unwrap().get("subscriber").unwrap();
@@ -211,13 +212,13 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
                                     packet.set_src(topic_gdpname.clone());
                                     packet.set_dst([0u8;32]);
                                     let ip_layer = packet.envelope_mut().envelope_mut();
-                                    ip_layer.set_src(local_ip_address);
+                                    ip_layer.set_src(locao_ip_address_clone);
                                     ip_layer.set_dst(Ipv4Addr::BROADCAST);
                                     let ether_layer = ip_layer.envelope_mut();
                                     ether_layer.set_src(local_mac_addr.clone());
                                     ether_layer.set_dst(MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff));
                                     debug!("Message broadcasted..");
-                                    Ok(Either::Keep(packet))
+                                    Ok(packet)
                                 })
                             }
                             ,
