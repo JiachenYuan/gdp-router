@@ -194,9 +194,10 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                         // group.map(move |packet| {
                         //     forward_packet(packet, local_mac_addr, access_point_addr)
                         // })
-                        group.filter_map(move |mut packet| {
+                        group.map(move |mut packet| {
                             if packet.dst() == [0u8; 32] {
                                 // forward to client
+                                println!("{:?}", packet);
                                 let gdpname_hash_map = store.get_neighbors().read().unwrap();
                                 // let mut iter = gdpname_hash_map.values();
                                 let mut iter = gdpname_hash_map.iter();
@@ -204,12 +205,13 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                                 let (client_gdpname, client_ip) = iter.next().unwrap();
                                 debug!("Found client, sending to client. Type = TopicMessage");
                                 packet.set_dst(client_gdpname.clone());
-                                Ok(Either::Keep(to_client(packet, local_ip_address, client_ip.clone(), local_mac_addr).unwrap()))
+                                to_client(packet, local_ip_address, client_ip.clone(), local_mac_addr)
                                 
                             } else {
                                 // forward to access point
                                 // debug!("Sending to access point. Type = TopicMessage");
                                 // Ok(Either::Keep(forward_packet(packet, local_mac_addr, access_point_addr).unwrap()))
+                                debug!("broadcasting topic message");
                                 packet.set_src(packet.dst());
                                 packet.set_dst([0u8; 32]);
                                 let ip_layer = packet.envelope_mut().envelope_mut();
@@ -218,7 +220,7 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                                 
                                 let ether_layer = ip_layer.envelope_mut();
                                 ether_layer.set_src(local_mac_addr);
-                                Ok(Either::Keep(packet))
+                                Ok(packet)
                             }
                         })
                     }
