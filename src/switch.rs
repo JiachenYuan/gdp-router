@@ -66,17 +66,18 @@ fn prepare_register_packet(
     }
 
 
-pub fn send_neighbor_request(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>, access_point_addr: Ipv4Addr) {
+pub fn send_neighbor_request(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>>, access_point_addr: Ipv4Addr) {
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     // Broadcasting the packet
     let dst_mac = MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
     let dst_ip = access_point_addr;
-    let table_ser = lsdb.lock().unwrap().table_as_str().as_bytes();
+    let table_str = serde_json::to_string(&(lsdb.lock().unwrap().routing_table)).unwrap();
+    let table_ser = table_str.as_bytes();
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
         .map(move |reply| {
-            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, table_ser, GdpAction::LSA)
+            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, &table_ser, GdpAction::LSA)
         })
         .send(q.clone())
         .run_once();
@@ -221,7 +222,7 @@ fn handle_incoming_packet(packet: &Gdp<Udp<Ipv4>>, lsdb: Arc<Mutex<LinkStateData
     return reply;
 }
 
-fn switch_pipeline(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>) -> impl Pipeline {
+fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>>) -> impl Pipeline {
     let local_ip_address = query_local_ip_address();
 
     let closure_q = q.clone();
@@ -269,7 +270,7 @@ fn switch_pipeline(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>) -> impl Pi
                                     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
                                 };
                                 println!("{:?}", message);
-                                // lsdb.lock().unwrap().update_state(packet.src(), message);
+                                lsdb.lock().unwrap().update_state(packet.src(), message);
                             }
                         })
                     }
@@ -299,7 +300,7 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
     let mut runtime = Runtime::build(config)?;
 
     // Initialize OSPF state
-    let link_state = Arc::new(Mutex::new(LinkStateDatabase::new()));
+    let link_state: &'static Arc<Mutex<LinkStateDatabase>> = Box::leak(Box::new(Arc::new(Mutex::new(LinkStateDatabase::new()))));
     // Test
     link_state.lock().unwrap().add_neighbor("1.1.1.1".parse::<Ipv4Addr>()?);
 
@@ -317,8 +318,9 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
             Some(ip_as_string) => {
                 println!("sent neighbor request");
                 let ip = ip_as_string.parse::<Ipv4Addr>().unwrap();
-                send_neighbor_request(q.clone(), link_state.clone(), ip);
+                send_neighbor_request(q.clone(), &link_state, ip);
                 link_state.lock().unwrap().add_neighbor(ip);
+                link_state.lock().unwrap().print_table();
             }
         }
         // Add delay?
@@ -333,7 +335,7 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
         }
 
         // Listen to incoming packets
-        switch_pipeline(q, link_state.clone())
+        switch_pipeline(q, &link_state)
 
     })?
     
