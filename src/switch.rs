@@ -180,6 +180,46 @@ fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
         .run_once();
 }
 
+// TODO: Add this pipeline step in before packet operation
+fn handle_incoming_packet(packet: &Gdp<Udp<Ipv4>>, lsdb: Arc<Mutex<LinkStateDatabase>>) -> Result<Gdp<Udp<Ipv4>>> {
+    let udp = packet.envelope();
+    let ipv4 = udp.envelope();
+    let ethernet = ipv4.envelope();
+    let curr_ip = query_local_ip_address();
+
+    // If packet destination is current router, continue.
+    if (packet.dst() == curr_ip){ 
+        return;
+    }
+    let next_jump = match lsdb.lock().unwrap().get_next_hop(packet.dst()) {
+        Some(v) => v,
+        None => panic!("Unable to route") 
+    };
+    
+    // Create new packet, redirect.
+    let out = Mbuf::new()?;
+    let mut out = out.push::<Ethernet>()?;
+    out.set_src(ethernet.src());
+    out.set_dst(ethernet.dst());
+
+    // Change IP with current switch IP, next hop destination
+    let mut out = out.push::<Ipv4>()?;
+    reply.set_src(curr_ip);
+    reply.set_dst(next_jump);
+
+    let mut reply = reply.push::<Udp<Ipv4>>()?;
+    reply.set_src_port(udp.src_port());
+    reply.set_dst_port(udp.dst_port());
+
+    // Keep GDP address the same
+    let mut reply = reply.push::<Gdp<Udp<Ipv4>>>()?;
+    reply.set_action(packet.action());
+    reply.set_data_len(packet.payload_len());
+    reply.set_src(packet.src());
+    reply.set_dst(packet.dst());
+    
+    return reply;
+}
 
 fn switch_pipeline(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>) -> impl Pipeline {
     let local_ip_address = query_local_ip_address();
@@ -215,6 +255,7 @@ fn switch_pipeline(q: PortQueue, lsdb: Arc<Mutex<LinkStateDatabase>>) -> impl Pi
                             if let Disposition::Act(packet) = disp {
                                 println!("Being pinged...");
                                 let message = get_payload(packet).unwrap();
+                                packet.get
                                 println!("{:?}", message);
                             }
                         })
@@ -281,6 +322,7 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
             }
         }
         // Add delay?
+        // Send ping packet to target if specified from args.
         match &target {
             None => println!("No ping action."),
             Some(_target_address) => {
