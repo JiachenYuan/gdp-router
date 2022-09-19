@@ -182,7 +182,7 @@ fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
 }
 
 // TODO: Add this pipeline step in before packet operation
-fn handle_incoming_packet(packet: &Gdp<Udp<Ipv4>>, lsdb: Arc<Mutex<LinkStateDatabase>>) -> Result<Gdp<Udp<Ipv4>>> {
+fn handle_incoming_packet(packet: &Gdp<Udp<Ipv4>>, lsdb: Arc<Mutex<LinkStateDatabase>>) -> bool {
     let udp = packet.envelope();
     let ipv4 = udp.envelope();
     let ethernet = ipv4.envelope();
@@ -190,7 +190,7 @@ fn handle_incoming_packet(packet: &Gdp<Udp<Ipv4>>, lsdb: Arc<Mutex<LinkStateData
 
     // If packet destination is current router, continue.
     if (packet.dst() == curr_ip){ 
-        return;
+        return true;
     }
     let next_jump = match lsdb.lock().unwrap().get_next_hop(packet.dst()) {
         Some(v) => v,
@@ -198,28 +198,28 @@ fn handle_incoming_packet(packet: &Gdp<Udp<Ipv4>>, lsdb: Arc<Mutex<LinkStateData
     };
     
     // Create new packet, redirect.
-    let out = Mbuf::new()?;
-    let mut out = out.push::<Ethernet>()?;
+    let out = Mbuf::new().unwrap();
+    let mut out = out.push::<Ethernet>().unwrap();
     out.set_src(ethernet.src());
     out.set_dst(ethernet.dst());
 
     // Change IP with current switch IP, next hop destination
-    let mut out = out.push::<Ipv4>()?;
-    reply.set_src(curr_ip);
-    reply.set_dst(next_jump);
+    let mut out = out.push::<Ipv4>().unwrap();
+    out.set_src(curr_ip);
+    out.set_dst(next_jump);
 
-    let mut reply = reply.push::<Udp<Ipv4>>()?;
-    reply.set_src_port(udp.src_port());
-    reply.set_dst_port(udp.dst_port());
+    let mut out = out.push::<Udp<Ipv4>>().unwrap();
+    out.set_src_port(udp.src_port());
+    out.set_dst_port(udp.dst_port());
 
     // Keep GDP address the same
-    let mut reply = reply.push::<Gdp<Udp<Ipv4>>>()?;
-    reply.set_action(packet.action());
-    reply.set_data_len(packet.payload_len());
-    reply.set_src(packet.src());
-    reply.set_dst(packet.dst());
+    let mut out = out.push::<Gdp<Udp<Ipv4>>>().unwrap();
+    out.set_action(packet.action().unwrap());
+    out.set_data_len(packet.payload_len());
+    out.set_src(packet.src());
+    out.set_dst(packet.dst());
     
-    return reply;
+    return false;
 }
 
 fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>>) -> impl Pipeline {
@@ -256,7 +256,7 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
                             if let Disposition::Act(packet) = disp {
                                 println!("Being pinged...");
                                 let message = get_payload(packet).unwrap();
-                                packet.get
+                                // packet.get
                                 println!("{:?}", message);
                             }
                         })
