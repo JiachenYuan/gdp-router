@@ -181,45 +181,57 @@ fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
         .run_once();
 }
 
-// TODO: Add this pipeline step in before packet operation
-fn handle_incoming_packet(packet: &Gdp<Udp<Ipv4>>, lsdb: Arc<Mutex<LinkStateDatabase>>) -> bool {
+fn handle_incoming_packet(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, lsdb: &'static Arc<Mutex<LinkStateDatabase>>) -> bool {
+    if packet.dst() == query_local_ip_address() { 
+        return true;
+    } else {
+        batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
+            .map(move |reply| {
+                prepare_redirect_packet(packet, lsdb)
+            })
+            .send(q.clone())
+            .run_once();
+        return false;
+    }
+}
+
+fn prepare_redirect_packet(packet: &Gdp<Udp<Ipv4>>, lsdb: &'static Arc<Mutex<LinkStateDatabase>>) -> Result<Gdp<Udp<Ipv4>>> {
     let udp = packet.envelope();
     let ipv4 = udp.envelope();
     let ethernet = ipv4.envelope();
     let curr_ip = query_local_ip_address();
 
     // If packet destination is current router, continue.
-    if (packet.dst() == curr_ip){ 
-        return true;
-    }
     let next_jump = match lsdb.lock().unwrap().get_next_hop(packet.dst()) {
         Some(v) => v,
         None => panic!("Unable to route") 
     };
     
     // Create new packet, redirect.
-    let out = Mbuf::new().unwrap();
-    let mut out = out.push::<Ethernet>().unwrap();
+    let out = Mbuf::new()?;
+    let mut out = out.push::<Ethernet>()?;
     out.set_src(ethernet.src());
     out.set_dst(ethernet.dst());
 
     // Change IP with current switch IP, next hop destination
-    let mut out = out.push::<Ipv4>().unwrap();
+    let mut out = out.push::<Ipv4>()?;
     out.set_src(curr_ip);
     out.set_dst(next_jump);
 
-    let mut out = out.push::<Udp<Ipv4>>().unwrap();
+    let mut out = out.push::<Udp<Ipv4>>()?;
     out.set_src_port(udp.src_port());
     out.set_dst_port(udp.dst_port());
 
     // Keep GDP address the same
-    let mut out = out.push::<Gdp<Udp<Ipv4>>>().unwrap();
-    out.set_action(packet.action().unwrap());
+    let mut out = out.push::<Gdp<Udp<Ipv4>>>()?;
+    out.set_action(packet.action()?);
     out.set_data_len(packet.payload_len());
     out.set_src(packet.src());
     out.set_dst(packet.dst());
+
+    out.reconcile_all();
     
-    return false;
+    return Ok(out);
 }
 
 fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>>) -> impl Pipeline {
@@ -231,6 +243,7 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
         .map(|packet| packet.parse::<Ethernet>()?.parse::<Ipv4>())
         .filter(move |packet| packet.dst() == local_ip_address)
         .map(|packet| packet.parse::<Udp<Ipv4>>()?.parse::<Gdp<Udp<Ipv4>>>())
+        .filter(move |packet| handle_incoming_packet(&closure_q, packet, &lsdb))
         .group_by(
             |packet| packet.action().unwrap(),
             |groups| {
