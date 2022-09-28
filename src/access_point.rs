@@ -128,38 +128,47 @@ struct TopicAdvertise {
     is_pub: String,
 }
 
-fn register_topic(client_gdpname: GdpName, topic_request: TopicAdvertise, store: Store) -> Result<()>{
+fn register_topic(
+    client_gdpname: GdpName, 
+    topic_request: TopicAdvertise, 
+    store: Store
+    ) -> Result<()>
+{
     let mut topic_gdpname: [u8; 32] = [0; 32];
     for i in 0..32 {
         topic_gdpname[i] = *topic_request.topic_gdpname.get(i).unwrap();
     }
-    
-    let mut router_info = store.get_topic_info().write().unwrap();
-    let mut topic_name_map = store.get_topic_name_map().write().unwrap();
 
-    if topic_request.topic_name != "__" {
-        topic_name_map.insert(topic_request.topic_name.clone(), topic_gdpname);
+    let mut topic_detail = store.get_topic_info().write().unwrap();
+    // let mut topic_name_map = store.get_topic_name_map().write().unwrap();
+    
+
+    if !topic_detail.contains_key(&topic_gdpname) {
+        // topic_name_map.insert(topic_request.topic_name.clone(), topic_gdpname);
         let hashset_pub: HashSet<GdpName> = HashSet::new();
         let hashset_sub: HashSet<GdpName> = HashSet::new();
         let mut pub_sub_map = HashMap::new();
         pub_sub_map.insert("publisher".to_string(), hashset_pub);
         pub_sub_map.insert("subscriber".to_string(), hashset_sub);
-        router_info.insert(topic_gdpname, pub_sub_map);
-    }
-
-    if topic_request.is_pub == "1".to_string() {
-        let set = router_info.get_mut(&topic_gdpname).unwrap().get_mut("publisher").unwrap();
-        set.insert(client_gdpname);
-    } else {
-        let set = router_info.get_mut(&topic_gdpname).unwrap().get_mut("subscriber").unwrap();
-        set.insert(client_gdpname);
+        topic_detail.insert(topic_gdpname, pub_sub_map);
     }
 
     
-    println!("topic_name_map is = {:?}\n", topic_name_map);
-    println!("router_info is = {:?}\n\n", router_info);
+    if topic_request.is_pub == "1".to_string() {
+        let set = topic_detail.get_mut(&topic_gdpname).unwrap().get_mut("publisher").unwrap();
+        set.insert(client_gdpname);
+    } else {
+        let set = topic_detail.get_mut(&topic_gdpname).unwrap().get_mut("subscriber").unwrap();
+        set.insert(client_gdpname);
+    }
+
+
+    // println!("topic_name_map is = {:?}\n", topic_name_map);
+    println!("topic_detail is = {:?}\n\n", topic_detail);
 
     Ok(())
+
+    
 }
 
 
@@ -170,6 +179,7 @@ fn pipeline_installer(q: PortQueue, gdpname: GdpName, store: Store) -> impl Pipe
     let locao_ip_address_clone = local_ip_address.clone();
     let q_clone_for_closure1 = q.clone();
     let q_clone_for_closure2 = q.clone();
+    let q_clone_for_closure3 = q.clone();
     let local_mac_addr = q.mac_addr();
 
     Poll::new(q.clone())
