@@ -68,7 +68,7 @@ impl LinkStateDatabase {
     pub fn print_table(&mut self) -> () {
         // Search routing table
         for (key, value) in &self.routing_table {
-            println!("{}: next {}, cost {}", key, value.0, value.1);
+            println!("{}: next hop: {}, cost: {}", key, value.0, value.1);
         }
     }
 }

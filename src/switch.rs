@@ -65,8 +65,11 @@ fn prepare_register_packet(
 
     }
 
-
-pub fn send_neighbor_request(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>>, access_point_addr: Ipv4Addr) {
+    /* 
+     * Sends local memtable to access_point_addr.
+     * Specify whether packet is an ack with is_ack.
+     */
+pub fn send_neighbor_request(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>>, access_point_addr: Ipv4Addr, is_ack: bool) {
     let src_mac = q.mac_addr();
     let src_ip = query_local_ip_address();
     // Broadcasting the packet
@@ -74,10 +77,11 @@ pub fn send_neighbor_request(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDat
     let dst_ip = access_point_addr;
     let table_str = serde_json::to_string(&(lsdb.lock().unwrap().routing_table)).unwrap();
     let table_ser = table_str.as_bytes();
+    let packet_type = if is_ack { GdpAction::LSA_ACK } else { GdpAction::LSA };
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
         .map(move |reply| {
-            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, &table_ser, GdpAction::LSA)
+            prepare_packet(reply, src_mac, src_ip, dst_mac, dst_ip, &table_ser, packet_type)
         })
         .send(q.clone())
         .run_once();
@@ -274,6 +278,7 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
                             }
                         })
                     }
+                    // Update local routing table with neighbor's table
                     GdpAction::LSA => |group| {
                         group.inspect(|disp| {
                             if let Disposition::Act(packet) = disp {
@@ -284,11 +289,27 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
                                 };
                                 println!("{:?}", message);
                                 lsdb.lock().unwrap().update_state(packet.src(), message);
+                                lsdb.lock().unwrap().print_table();
+                                // Send back ACK including own table
+                                send_neighbor_request(q.clone(), &lsdb, packet.src(), true);
                             }
                         })
                     }
-
-
+                    // Same as above, except we do not send an ack. TODO: Make this neater
+                    GdpAction::LSA_ACK => |group| {
+                        group.inspect(|disp| {
+                            if let Disposition::Act(packet) = disp {
+                                println!("Received LSA Ack...");
+                                let message = match str::from_utf8(get_payload(packet).unwrap()) {
+                                    Ok(v) => v,
+                                    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                                };
+                                println!("{:?}", message);
+                                lsdb.lock().unwrap().update_state(packet.src(), message);
+                                lsdb.lock().unwrap().print_table();
+                            }
+                        })
+                    }
 
                     _ => |group| {
                         group.filter(|_| {
@@ -315,7 +336,7 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
     // Initialize OSPF state
     let link_state: &'static Arc<Mutex<LinkStateDatabase>> = Box::leak(Box::new(Arc::new(Mutex::new(LinkStateDatabase::new()))));
     // Test
-    link_state.lock().unwrap().add_neighbor("1.1.1.1".parse::<Ipv4Addr>()?);
+    // link_state.lock().unwrap().add_neighbor("1.1.1.1".parse::<Ipv4Addr>()?);
 
 
     // connect physical NICs to TAP interfaces
@@ -331,7 +352,7 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
             Some(ip_as_string) => {
                 println!("sent neighbor request");
                 let ip = ip_as_string.parse::<Ipv4Addr>().unwrap();
-                send_neighbor_request(q.clone(), &link_state, ip);
+                send_neighbor_request(q.clone(), &link_state, ip, false);
                 link_state.lock().unwrap().add_neighbor(ip);
                 link_state.lock().unwrap().print_table();
             }
