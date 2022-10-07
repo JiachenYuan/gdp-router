@@ -215,7 +215,6 @@ fn handle_incoming_packet(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, lsdb: &'static
             _ => println!("Other packet type not handled in handle_incoming_packet..."),
 
         }
-        send_neighbor_request(q.clone(), &lsdb, packet.src(), true);
         return true;
     } else {
         batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
