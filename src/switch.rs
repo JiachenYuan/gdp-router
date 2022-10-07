@@ -78,6 +78,8 @@ pub fn send_neighbor_request(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDat
     let table_str = serde_json::to_string(&(lsdb.lock().unwrap().routing_table)).unwrap();
     let table_ser = table_str.as_bytes();
     let packet_type = if is_ack { GdpAction::LSA_ACK } else { GdpAction::LSA };
+    println!("Send {:?} to {:?}\n", packet_type, access_point_addr);
+
 
     batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
         .map(move |reply| {
@@ -196,9 +198,10 @@ fn handle_incoming_packet(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, lsdb: &'static
                     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
                 };
                 println!("{:?}", message);
+                lsdb.lock().unwrap().add_neighbor(packet.src(), 1);
                 lsdb.lock().unwrap().update_state(packet.src(), message);
                 lsdb.lock().unwrap().print_table();
-                // Send back ACK including own table
+                // Send back ACK to all neighbors
                 send_neighbor_request(q.clone(), &lsdb, packet.src(), true);
             }
             // Same as above, except we do not send an ack. TODO: Remove code duplication
@@ -211,6 +214,16 @@ fn handle_incoming_packet(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, lsdb: &'static
                 println!("{:?}", message);
                 lsdb.lock().unwrap().update_state(packet.src(), message);
                 lsdb.lock().unwrap().print_table();
+                // Send ACK to all other neighbors (ACKs will not be ACKed)
+                // TODO: Figure out loop avoidance as this may infinitely flood.
+                // See https://medium.com/@techspecialistacademy/network-loops-and-loop-avoidance-547eb7b95744
+                /* 
+                for neighbor in &lsdb.lock().unwrap().neighbors {
+                    if (neighbor != &packet.src()) {
+                        send_neighbor_request(q.clone(), &lsdb, *neighbor, true);
+                    }
+                }
+                */
             }
             _ => println!("Other packet type not handled in handle_incoming_packet..."),
 
@@ -310,8 +323,8 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
                     GdpAction::LSA => |group| {
                         group.inspect(|disp| {
                             if let Disposition::Act(packet) = disp {
-                                println!("Received LSA...");
                                 /*
+                                println!("Received LSA...");
                                 let message = match str::from_utf8(get_payload(packet).unwrap()) {
                                     Ok(v) => v,
                                     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
@@ -329,8 +342,8 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
                     GdpAction::LSA_ACK => |group| {
                         group.inspect(|disp| {
                             if let Disposition::Act(packet) = disp {
-                                println!("Received LSA Ack...");
                                 /*
+                                println!("Received LSA Ack...");
                                 let message = match str::from_utf8(get_payload(packet).unwrap()) {
                                     Ok(v) => v,
                                     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
@@ -384,8 +397,8 @@ pub fn start_switch(access_point_addr: Option<String>, target: Option<String>) -
             Some(ip_as_string) => {
                 println!("sent neighbor request");
                 let ip = ip_as_string.parse::<Ipv4Addr>().unwrap();
+                link_state.lock().unwrap().add_neighbor(ip, 1);
                 send_neighbor_request(q.clone(), &link_state, ip, false);
-                link_state.lock().unwrap().add_neighbor(ip);
                 link_state.lock().unwrap().print_table();
             }
         }

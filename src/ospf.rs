@@ -19,14 +19,14 @@ impl LinkStateDatabase {
         }
     }
 
-    pub fn add_neighbor(&mut self, neighbor_ip: Ipv4Addr) {
+    pub fn add_neighbor(&mut self, neighbor_ip: Ipv4Addr, cost: u8) {
         self.neighbors.push(neighbor_ip);
         // Insert to routing table with edge cost 1 (# jumps)
         self.routing_table.insert(
             neighbor_ip,
             (
                 neighbor_ip,
-                1,
+                cost,
             )
         );
     }
