@@ -188,7 +188,7 @@ fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
 fn handle_incoming_packet(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, lsdb: &'static Arc<Mutex<LinkStateDatabase>>) -> bool {
     if packet.dst() == query_local_ip_address() { 
         // Temporary additional LSA as workaround for PortQueue issue.
-        match packet.action()? {
+        match packet.action().unwrap() {
             GdpAction::LSA => {
                 println!("Received LSA...");
                 let message = match str::from_utf8(get_payload(packet).unwrap()) {
