@@ -202,7 +202,7 @@ fn handle_incoming_packet(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, lsdb: &'static
                 send_neighbor_request(q.clone(), &lsdb, packet.src(), true);
             }
             // Same as above, except we do not send an ack. TODO: Remove code duplication
-            GdpAction::LSA_ACK =>{
+            GdpAction::LSA_ACK => {
                 println!("Received LSA ACK...");
                 let message = match str::from_utf8(get_payload(packet).unwrap()) {
                     Ok(v) => v,
@@ -212,6 +212,8 @@ fn handle_incoming_packet(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, lsdb: &'static
                 lsdb.lock().unwrap().update_state(packet.src(), message);
                 lsdb.lock().unwrap().print_table();
             }
+            _ => println!("Other packet type not handled in handle_incoming_packet..."),
+
         }
         send_neighbor_request(q.clone(), &lsdb, packet.src(), true);
         return true;
