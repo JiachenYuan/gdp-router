@@ -187,6 +187,33 @@ fn send_test_packet(q: &PortQueue, target: Ipv4Addr) {
 
 fn handle_incoming_packet(q: &PortQueue, packet: &Gdp<Udp<Ipv4>>, lsdb: &'static Arc<Mutex<LinkStateDatabase>>) -> bool {
     if packet.dst() == query_local_ip_address() { 
+        // Temporary additional LSA as workaround for PortQueue issue.
+        match packet.action()? {
+            GdpAction::LSA => {
+                println!("Received LSA...");
+                let message = match str::from_utf8(get_payload(packet).unwrap()) {
+                    Ok(v) => v,
+                    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                };
+                println!("{:?}", message);
+                lsdb.lock().unwrap().update_state(packet.src(), message);
+                lsdb.lock().unwrap().print_table();
+                // Send back ACK including own table
+                send_neighbor_request(q.clone(), &lsdb, packet.src(), true);
+            }
+            // Same as above, except we do not send an ack. TODO: Remove code duplication
+            GdpAction::LSA_ACK =>{
+                println!("Received LSA ACK...");
+                let message = match str::from_utf8(get_payload(packet).unwrap()) {
+                    Ok(v) => v,
+                    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                };
+                println!("{:?}", message);
+                lsdb.lock().unwrap().update_state(packet.src(), message);
+                lsdb.lock().unwrap().print_table();
+            }
+        }
+        send_neighbor_request(q.clone(), &lsdb, packet.src(), true);
         return true;
     } else {
         batch::poll_fn(|| Mbuf::alloc_bulk(1).unwrap())
@@ -283,6 +310,7 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
                         group.inspect(|disp| {
                             if let Disposition::Act(packet) = disp {
                                 println!("Received LSA...");
+                                /*
                                 let message = match str::from_utf8(get_payload(packet).unwrap()) {
                                     Ok(v) => v,
                                     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
@@ -292,14 +320,16 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
                                 lsdb.lock().unwrap().print_table();
                                 // Send back ACK including own table
                                 send_neighbor_request(q.clone(), &lsdb, packet.src(), true);
+                                */
                             }
                         })
                     }
-                    // Same as above, except we do not send an ack. TODO: Make this neater
+                    // Same as above, except we do not send an ack. TODO: Remove code duplication
                     GdpAction::LSA_ACK => |group| {
                         group.inspect(|disp| {
                             if let Disposition::Act(packet) = disp {
                                 println!("Received LSA Ack...");
+                                /*
                                 let message = match str::from_utf8(get_payload(packet).unwrap()) {
                                     Ok(v) => v,
                                     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
@@ -307,6 +337,7 @@ fn switch_pipeline<'a>(q: PortQueue, lsdb: &'static Arc<Mutex<LinkStateDatabase>
                                 println!("{:?}", message);
                                 lsdb.lock().unwrap().update_state(packet.src(), message);
                                 lsdb.lock().unwrap().print_table();
+                                */
                             }
                         })
                     }
