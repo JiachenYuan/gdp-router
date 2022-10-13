@@ -1,8 +1,8 @@
-use std::{ptr::NonNull, net::Ipv4Addr, fmt};
+use std::{ptr::NonNull, fmt};
 use anyhow::Result;
 use capsule::{packets::{Packet, Internal, Udp, ip::v4::Ipv4, types::u16be}, SizeOf};
 
-use crate::structs::{GDPHeader, GdpAction};
+use crate::structs::{GDPHeader, GdpAction, GdpName};
 
 pub struct Gdp<T: Packet> {
     envelope: T,
@@ -12,12 +12,12 @@ pub struct Gdp<T: Packet> {
 
 impl<T: Packet> Gdp<T> {
     #[inline]
-    fn header(&self) -> &GDPHeader {
+    pub fn header(&self) -> &GDPHeader {
         unsafe { self.header.as_ref() }
     }
 
     #[inline]
-    fn header_mut(&mut self) -> &mut GDPHeader {
+    pub fn header_mut(&mut self) -> &mut GDPHeader {
         unsafe { self.header.as_mut() }
     }
 
@@ -32,23 +32,23 @@ impl<T: Packet> Gdp<T> {
     }
 
     #[inline]
-    pub fn src(&self) -> Ipv4Addr {
-        self.header().src
+    pub fn src(&self) -> GdpName {
+        self.header().src_gdpname
     }
 
     #[inline]
-    pub fn set_src(&mut self, src: Ipv4Addr) {
-        self.header_mut().src = src;
+    pub fn set_src(&mut self, src: GdpName) {
+        self.header_mut().src_gdpname = src;
     }
 
     #[inline]
-    pub fn dst(&self) -> Ipv4Addr {
-        self.header().dst
+    pub fn dst(&self) -> GdpName {
+        self.header().dst_gdpname
     }
 
     #[inline]
-    pub fn set_dst(&mut self, dst: Ipv4Addr) {
-        self.header_mut().dst = dst;
+    pub fn set_dst(&mut self, dst: GdpName) {
+        self.header_mut().dst_gdpname = dst;
     }
 
     #[inline]
@@ -127,7 +127,7 @@ impl<T: Packet> Packet for Gdp<T> {
         let mbuf = envelope.mbuf_mut();
 
         mbuf.extend(offset, GDPHeader::size_of())?;
-        let header = mbuf.write_data(offset, &GDPHeader { action: 0, data_len: u16be::MIN, src: Ipv4Addr::LOCALHOST, dst: Ipv4Addr::LOCALHOST })?;
+        let header = mbuf.write_data(offset, &GDPHeader { action: 0, data_len: u16be::MIN, src_gdpname: [0; 32], dst_gdpname: [0; 32], num_packets: 1, packet_no: 1, uuid: [0; 16], ttl: 64 })?;
 
         Ok(Gdp {
             envelope,

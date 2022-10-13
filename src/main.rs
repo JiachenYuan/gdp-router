@@ -4,16 +4,18 @@ mod schedule;
 mod network_protocols;
 mod structs;
 mod utils;
-mod rib;
+mod access_point;
 mod router_store;
 mod switch;
 
-use std::net::Ipv4Addr;
+use std::{net::Ipv4Addr, str::FromStr};
 
 use anyhow::Result;
 use tracing::Level;
 use tracing_subscriber::fmt;
 use clap::Parser;
+
+use crate::{switch::start_switch, access_point::start_access_point, packet_sender::test_forward, utils::gdpname_hex_to_byte_array};
 
 
 /// GDP Switch
@@ -21,13 +23,13 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    /// Mode of operation: 1 if sending packet, 0 if receiving packet
+    /// Mode of operation: 0 to start a switch, 1 to start an access point, 2 to send a packet
     #[clap(short, long ,value_parser, default_value_t = 0)]
     mode: u8,
 
-    /// Target switch's ipv4 address if sending packet from current switch
+    /// Target switch if sending packet from current node
     #[clap(short, long, value_parser)]
-    target_ip: Option<String>,
+    target: Option<String>,
 
     /// Access point's ipv4 address if sending packet from current switch
     #[clap(short, long, value_parser)]
@@ -43,60 +45,30 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     println!("{:?}", args);
-    let mut _target_switch_address = Ipv4Addr::UNSPECIFIED;
-    let mut _AP_ip = Ipv4Addr::UNSPECIFIED;
-    if args.mode == 1 {
-        match args.target_ip {
-            None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
-            Some(ip_as_string) => {
-                _target_switch_address = ip_as_string.parse::<Ipv4Addr>()?;
-            }
-        }
-    } 
-    else if args.mode == 3 {
-        match args.AP_ip {
-            None => panic!("Want to connect this switch to network, but missing access point ip. Check cargo run -- --help"),
-            Some(ip_as_string) => {
-                _AP_ip = ip_as_string.parse::<Ipv4Addr>()?;
-            }
-        }
-        match args.target_ip {
-            None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
-            Some(target_address) => {
-                _target_switch_address = target_address.parse::<Ipv4Addr>()?;
-            }
-        }
-    } 
-    else if args.mode == 4 {
-        match args.target_ip {
-            None => panic!("Intend to send packet, but do not know the target ip. Check cargo run -- --help"),
-            Some(ip_as_string) => {
-                _target_switch_address = ip_as_string.parse::<Ipv4Addr>()?;
-            }
-        }
-        match args.AP_ip {
-            None => panic!("Want to connect this switch to network, but missing access point ip. Check cargo run -- --help"),
-            Some(ip_as_string) => {
-                _AP_ip = ip_as_string.parse::<Ipv4Addr>()?;
-            }
-        }
-    }
-
-
+    
+    // todo: Perform argument validation and cleaning
     match args.mode {
-        // Receiver mode
-        0 => packet_receiver::start_receiver(),
-
-        // Sender mode
-        1 => packet_sender::start_sender(_target_switch_address),
-        2 => rib::start_rib(),
-        3 => switch::start_switch(_AP_ip, _target_switch_address),
-        4 => packet_sender::test_forward(_target_switch_address, _AP_ip),
-        _ => {
-            println!("Not a valid mode, please check --help");
-            return Ok(());
+        0 => {
+            let access_point_addr = Ipv4Addr::from_str(&args.AP_ip.unwrap()).unwrap();
+            start_switch(access_point_addr)?;
         },
+        
+        1 => {
+            start_access_point()?;
+        },
+
+        2 => {
+            let target_gdpname = gdpname_hex_to_byte_array(&args.target.unwrap());
+            println!("Parsed GdpName is {:?}", target_gdpname);
+            let access_point_addr = Ipv4Addr::from_str(&args.AP_ip.unwrap()).unwrap();
+            test_forward(target_gdpname, access_point_addr)?;
+        }
+
+        invalid => panic!("Mode {:?} is not recognized", invalid),
     }
+
+
+    Ok(())
 
 
 

@@ -1,9 +1,7 @@
-use std::fs;
-use std::process::Command;
 use capsule::batch::{Batch, Pipeline, Poll, Disposition};
 use capsule::packets::ip::v4::Ipv4;
 use capsule::packets::{Ethernet, Packet, Udp};
-use capsule::{PortQueue, Runtime};
+use capsule::{PortQueue};
 use tracing::debug;
 use anyhow::Result;
 
@@ -47,16 +45,17 @@ fn pipeline_installer(q: PortQueue) -> impl Pipeline {
 
 pub fn start_receiver() -> Result<()> {
     // Reading Runtime configuration file
-    let path = "runtime_config.toml";
-    let content = fs::read_to_string(path)?;
-    let config = toml::from_str(&content)?;
-    // Build the Runtime
-    let mut runtime = Runtime::build(config)?;
+    // let path = "runtime_config.toml";
+    // let content = fs::read_to_string(path)?;
+    // let config = toml::from_str(&content)?;
+    // // Build the Runtime
+    // let mut runtime = Runtime::build(config)?;
 
-    // connect physical NICs to TAP interfaces
-    // Note:  only packet sent to port 31415 will be received
-    Command::new("./init_tuntap.sh").output()?;
+    // // connect physical NICs to TAP interfaces
+    // // Note:  only packet sent to port 31415 will be received
+    // Command::new("./init_tuntap.sh").output()?;
 
-    runtime.add_pipeline_to_port("eth1", pipeline_installer)?
-        .execute()
+    // runtime.add_pipeline_to_port("eth1", pipeline_installer)?
+    //     .execute()
+    Ok(())
 }
