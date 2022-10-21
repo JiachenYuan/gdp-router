@@ -6,7 +6,8 @@ use tracing::debug;
 use crate::{network_protocols::gdp::Gdp, structs::{GdpAction, GdpName}, utils::{query_local_ip_address, generate_gdpname, set_payload, ipv4_addr_from_bytes, gdpname_byte_array_to_hex, uuid_byte_array_to_hex}, pipeline, router_store::Store};
 use crate::utils::get_payload;
 
-
+const LEFT: Ipv4Addr = Ipv4Addr::new(128,32,37,69);
+const RIGHT: Ipv4Addr = Ipv4Addr::new(128,32,37,42);
 
 
 pub fn send_register_request(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32]) {
@@ -141,7 +142,18 @@ fn switch_pipeline(q: PortQueue, access_point_addr: Ipv4Addr, gdpname: [u8; 32],
                             let msg = get_payload(packet).unwrap();
                             println!("Message is: {:?}", std::str::from_utf8(msg));
                             Ok(())
+                        }).map(move |mut packet| { // ! for forwarding speed benchmarking
+                            let ip_layer = packet.envelope_mut().envelope_mut();
+                            if ip_layer.src() == LEFT {
+                                forward_packet(packet, local_mac_addr, RIGHT)
+                            } else if ip_layer.src() == RIGHT {
+                                forward_packet(packet, local_mac_addr, LEFT)
+                            } else {
+                                forward_packet(packet, local_mac_addr, access_point_addr)
+                            }   
+                            // forward_packet(packet, local_mac_addr, access_point_addr)
                         })
+                        
                     }
                     ,
                     GdpAction::Register => |group| {
